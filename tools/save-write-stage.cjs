@@ -74,6 +74,12 @@ async function main() {
     '0100ee5021c9e000', // Seedsow Lullaby (full)
     '01005eb012fe2000', // Wagamama High Spec trial
   ]);
+  // Optional local allowlist; the built-in list stays as the floor.
+  try {
+    const extra = JSON.parse(require('node:fs').readFileSync(
+      path.join(__dirname, '..', 'config', 'titles.json'), 'utf8'));
+    for (const entry of extra.write || []) WHITELIST.add(String(entry.id).toLowerCase());
+  } catch { /* no local allowlist: use the built-in one */ }
   const idText = programId.toString(16).padStart(16, '0');
   check(WHITELIST.has(idText),
     'Refusing to write to ' + idText + ': not a whitelisted disposable title');
