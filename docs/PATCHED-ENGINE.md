@@ -23,6 +23,10 @@ actions and fail for others, so the set is listed here.
 
 ## Getting a patched checkout
 
+The patches ship in [../patches](../patches): `0001` (IPC descriptors) and
+`0002` (mounted-save export), with `patches/apply.sh <ns2jb-checkout>` applying
+and syntax-checking both.
+
 The patches live in the `ns2jb-rpc` fork used to develop this toolkit. Upstream
 is [gitlab.com/kurumuz/ns2jb](https://gitlab.com/kurumuz/ns2jb); this repository
 does not vendor or redistribute the exploit. If you only want read access, plain
