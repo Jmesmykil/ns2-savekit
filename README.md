@@ -209,6 +209,61 @@ happily run "Hello from a persistent Lua slot!" instead of your payload. Having
 both is the intended end state: the editor authors `sscode004.lua`, the stub runs
 it at boot.
 
+## Worked example: Seedsow Lullaby demo, pull then install
+
+One session, one save operation, uid typed once (nicknames are not decoded yet, so
+the account is addressed by its 16-byte uid).
+
+```sh
+node ~/ns2jb-rpc/run.cjs --rpc 192.168.50.34     # prints: Run folder: runs/switch2-XXXXXX
+node tools/kit.cjs ~/ns2jb-rpc/runs/switch2-XXXXXX
+```
+
+```
+9 installed applications  (✔ = write-allowed)
+  [1] ✔ Nora to Oujo to Noraneko Heart 2 (trial)  (010012900d38a000)
+  [2] ✔ Seedsow Lullaby (demo)                     (010042d022aea000)
+  …
+
+Number 1-9 (blank = quit): 2
+account uid (32 hex chars): 539fd27752770010a6ec4984c56d3664   ← once, then remembered
+
+Seedsow Lullaby (demo)  (010042d022aea000)
+  (CHOOSE ONE, ONLY ONE SAVE OPERATION IS ALLOWED PER SESSION)
+  1) List files in this save (read-only)      [save op]
+  2) Save: back this save up                     [save op]
+  3) Replace: write files from a directory        [save op]
+  4) Install payload files (Artemis launcher)     [save op]
+  5) Install the Seedsow Lua Editor save          [save op]
+  6) Delete a file (optional)                     [save op]
+  7) Verify: compare the save with what we wrote  [save op]
+  8) Back to the title list
+
+Number 1-8 (blank = back): 2
+
+$ node tools/save-pull-root.cjs …/switch2-XXXXXX 010042d022aea000 \
+      /…/ns2-savekit/saves/Seedsow-Lullaby-demo 539fd27752770010a6ec4984c56d3664
+mounted space=User type=Account uid=539fd27752770010a6ec4984c56d3664
+  /system.dat (5583 bytes)
+  /saveg.dat (2104 bytes)
+  …
+done: 290 files, 4651736 bytes -> /…/saves/Seedsow-Lullaby-demo
+```
+
+Pull lands in `saves/Seedsow-Lullaby-demo` (the game's name, not its id). Restart
+the console, run the kit again, and choose `5` to put a save *back* — the editor
+release is fetched automatically when the directory is missing:
+
+```
+Number 1-8 (blank = back): 5
+Directory with the editor save (blank = fetch it for me) [~/.cache/…]:
+unpacked 273 files into ~/.cache/ns2-savekit/seedsow-editor
+$ node tools/save-write-stage.cjs … 275 files, one commit
+```
+
+`3` does the same for any directory of files — a backup from another console, a
+mod, or a save you built yourself. `7` verifies afterwards, on the *next* boot,
+because verify is itself a save operation.
 ## Install the Seedsow Lua Editor save
 
 Requirements: `node` 20+, `python3`, `curl`, `unzip`, and a held ns2jb session
