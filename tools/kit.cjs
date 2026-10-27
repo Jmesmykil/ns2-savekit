@@ -267,7 +267,15 @@ async function main() {
       if (!title) continue;
       const uid = await pickUid(session, title);
       if (!uid) continue;
-      run('save-pull-root.cjs', [session, title, '.', uid, '--list-only'], {stdio: 'inherit'});
+      const listed = run('save-pull-root.cjs', [session, title, '.', uid, '--list-only'],
+        {stdio: 'inherit'});
+      if (!listed.ok) {
+        console.log('\nlisting failed. If this is not the first save operation in this boot,');
+        console.log('restart the console: a second operation crashes the host (2162-0002) or');
+        console.log('times out. A save can also be absent (0x7d402) if the game never ran.');
+      } else {
+        saveOpDone();
+      }
       continue;
     }
     const title = await pickTitle(session);

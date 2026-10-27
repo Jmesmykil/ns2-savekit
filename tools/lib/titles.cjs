@@ -19,7 +19,13 @@ function load() {
   return map;
 }
 
-async function refresh() {
+// The cache is good for a week; only the first run (or a stale cache) fetches,
+// so listing titles does not touch the network again.
+async function refresh(maxAgeMs = 7 * 24 * 3600 * 1000) {
+  try {
+    const stat = fs.statSync(CACHE);
+    if (Date.now() - stat.mtimeMs < maxAgeMs) return true;
+  } catch { /* no cache: fetch */ }
   try {
     const response = await fetch(URL, {signal: AbortSignal.timeout(20000)});
     if (!response.ok) return false;
