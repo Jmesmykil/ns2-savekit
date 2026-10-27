@@ -67,6 +67,25 @@ The promoted-root save path occasionally crashes the *host* application
 (`2162-0002`, roughly 3 in 5 attempts on our unit). One save operation per boot,
 and restart the console after a crash.
 
+## Guided CLI
+
+`node tools/kit.cjs` walks the whole flow instead of making you remember argument
+order: it finds the newest held session (or takes one as an argument), lists the
+installed titles, enumerates the account uid, pulls a backup, and only then
+offers writes - each with the file list and a confirmation. The menu is:
+
+```
+1) List installed titles
+2) List save archives known to FS
+3) Work on one title (backup, write, delete)
+4) Change session
+5) Quit
+```
+
+It is a front end, not a reimplementation: every action shells out to the scripts
+below, so the whitelist, the required backup, the verified replaces and the
+single-commit write all behave exactly as tested.
+
 ## Quick start
 
 ```sh

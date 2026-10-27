@@ -50,6 +50,25 @@ pcall(function()
   card = card .. '+w'
 end)
 add('sdw ' .. card)
+local function probe()
+  return 1
+end
+local function tryload(x)
+  local f, e = loadstring(x)
+  return tostring(e or type(f))
+end
+local d = string.dump(probe)
+local gc = collectgarbage
+local kb = gc('count')
+local function tl(a, b)
+  return tryload(d:sub(a, b))
+end
+add('dlen ' .. #d)
+add('gck ' .. tostring(kb))
+add('load ' .. tryload(d))
+add('b1 ' .. tl(1, 10))
+add('b2 ' .. tl(1, 30))
+add('b3 ' .. tl(1, #d - 8))
 local p = '/ns2jb-report.txt'
 local f = io.open(base..p,'wb')
 if f then
