@@ -70,23 +70,23 @@ async function main() {
     }
     console.log('uids:', uids.map(uid => uid.toString('hex')).join(' '));
 
-    const out = s.base + 0x5000;
+    const base = s.base + 0x5000;
     for (const uid of uids) {
       console.log('uid ' + uid.toString('hex'));
-      for (const command of [4, 100, 101, 102]) {
-        await s.write(out, Buffer.alloc(0x900));
-        const reply = await s.ipc('GetProfile ' + command, acc, command, uid,
-          {pointers: {receive: [{address: out, size: 0x900}]}});
-        const result = Number(reply.canonicalResult ?? reply.result) & 0x3fffff;
-        if (result) {
-          console.log('  cmd ' + command + ' -> ' + code(result));
-          continue;
+      for (const command of [4, 100, 101]) {
+        for (const size of [0x200, 0x800, 0x1000]) {
+          await s.write(base, Buffer.alloc(size));
+          const reply = await s.ipc('GetProfile ' + command + '/' + size, acc, command, uid,
+            {pointers: {receive: [{address: base, size}]}});
+          const result = Number(reply.canonicalResult ?? reply.result) & 0x3fffff;
+          if (result) { console.log(`  cmd ${command} size ${size} -> ${code(result)}`); continue; }
+          const data = await s.read(base, size);
+          let written = 0;
+          for (const byte of data) if (byte) written++;
+          const names = nicknames(data).filter(text => text.trim().length > 1);
+          console.log(`  cmd ${command} size ${size} -> OK, ${written} bytes written, names ${JSON.stringify(names.slice(0, 3))}`);
+          if (names.length) return;
         }
-        const data = await s.read(out, 0x900);
-        const names = nicknames(data).filter(text => text.trim().length > 1);
-        console.log('  cmd ' + command + ' -> OK, ' + data.length + ' bytes, names ' +
-          JSON.stringify(names.slice(0, 4)));
-        if (names.length) break;   // keep probing until something carries text
       }
     }
   } finally {
