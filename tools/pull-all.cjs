@@ -1,7 +1,12 @@
 #!/usr/bin/env node
 // Pull one save archive per session, for every installed application.
 //
-//   node pull-all.cjs <run-directory> <output-directory> [uid-hex] [--cache]
+//   node pull-all.cjs <run-directory> <output-directory> [uid-hex] [--batch N] [--cache]
+//
+// --batch N tries up to N archives in one boot instead of one. Opening a save
+// filesystem is what crashes the host, so a batch stops at the first failure and
+// the progress file keeps whatever succeeded: a batch can only ever save you
+// reboots, never lose an archive.
 //
 // Enumeration uses ns: (the installed-application list) because fs:srv's
 // save-data info reader is refused in this context: commands 60, 61 and 68 all
@@ -39,6 +44,9 @@ function accountUids(run) {
 async function main() {
   let argv = process.argv.slice(2);
   const wantCache = argv.includes('--cache');
+  const batchIndex = argv.indexOf('--batch');
+  const batch = batchIndex >= 0 ? Math.max(1, Number(argv[batchIndex + 1])) : 1;
+  if (batchIndex >= 0) argv.splice(batchIndex, 2);
   argv = argv.filter(a => a !== '--cache');
   const [runDirectory, outputDirectory, forcedUid] = argv;
   if (!runDirectory || !outputDirectory) {
@@ -65,27 +73,35 @@ async function main() {
     console.log('every application has been handled; nothing left to pull');
     return;
   }
-  const appId = pending[0];
-  const folder = path.join(output, titles.slug(appId));
-  console.log(`next: ${titles.label(appId)} -> ${folder}`);
-  console.log('one archive per session; progress advances only on success');
-
-  let pulled = false;
-  for (const uid of (uids.length ? uids : [''])) {
-    const args = [run, appId, folder];
-    if (uid) args.push(uid);
-    const result = spawnSync(process.execPath, [path.join(TOOLS, 'save-pull-root.cjs'), ...args],
-      {stdio: 'inherit'});
-    if (result.status === 0) { pulled = true; break; }
+  const queue = pending.slice(0, batch);
+  console.log(batch === 1
+    ? 'one archive this session; restart the console afterwards'
+    : `batch mode: up to ${batch} archives this session, stopping at the first failure`);
+  for (const appId of queue) {
+    const folder = path.join(output, titles.slug(appId));
+    console.log(`\nnext: ${titles.label(appId)} -> ${folder}`);
+    let pulled = false, exitCode = 0;
+    for (const uid of (uids.length ? uids : [''])) {
+      const args = [run, appId, folder];
+      if (uid) args.push(uid);
+      const result = spawnSync(process.execPath, [path.join(TOOLS, 'save-pull-root.cjs'), ...args],
+        {stdio: 'inherit'});
+      exitCode = result.status;
+      if (result.status === 0) { pulled = true; break; }
+    }
+    if (pulled) {
+      progress.done.push(appId);
+      console.log(`pulled ${progress.done.length}/${apps.length}`);
+    } else {
+      progress.absent.push(appId);
+      console.log('no save data for this application (0x7d402 for every account/space/type)');
+    }
+    await fsp.writeFile(progressFile, JSON.stringify(progress, null, 2) + '\n');
+    if (!pulled && exitCode !== 0) {
+      console.log('stopping the batch: that failure is the one that can take the host down');
+      break;
+    }
   }
-  if (pulled) {
-    progress.done.push(appId);
-    console.log(`pulled ${progress.done.length}/${apps.length}`);
-  } else {
-    progress.absent.push(appId);
-    console.log('no save data for this application (0x7d402 for every account/space/type)');
-  }
-  await fsp.writeFile(progressFile, JSON.stringify(progress, null, 2) + '\n');
   const left = apps.length - progress.done.length - progress.absent.length;
   console.log(left === 0
     ? 'done: restart the console once more if --cache is still to collect'
