@@ -89,25 +89,58 @@ Then boot the game: it resumes our script instead of the title screen.
 
 ## Install the Seedsow Lua Editor save
 
-We do not redistribute the editor's save. Their release is 0BSD and fetched
-directly:
+Requirements: `node` 20+, `python3`, `curl`, `unzip`, and a held ns2jb session
+(`node run.cjs --rpc <computer-ip>` printing `Run folder: runs/switch2-XXXXXX`).
+
+**Step 0 — the target save must already exist.** fsp-srv creates no save data;
+the game does. Launch Seedsow Lullaby Demo once, get to the title screen, and
+close it fully (**Home → X → Close**). Until you do, every attempt returns
+`0x7d402` for all account/space/type combinations.
 
 ```sh
-./tools/fetch-editor-save.sh /tmp/seed                       # downloads the v0.1.2 save zip
-python3 tools/build-editor-manifest.py /tmp/seed saves/demo backup.json
-node tools/save-write-stage.cjs runs/switch2-XXXXXX 010042d022aea000 <uid> saves/demo staging/manifest.json
+# 1. Which account owns the save? (16-byte AccountUid, printed as hex)
+node tools/find-save-uid.cjs runs/switch2-XXXXXX 010042d022aea000
+
+# 2. Back the save up (read-only) -- this is required before any write
+node tools/save-pull-root.cjs runs/switch2-XXXXXX 010042d022aea000 saves/demo <uid>
+
+# 3. Fetch the editor release (0BSD, from GitHub; nothing is bundled here)
+./tools/fetch-editor-save.sh /tmp/seed
+
+# 4. Build the install manifest: existing files become verified replaces,
+#    everything else is add-only
+python3 tools/build-editor-manifest.py /tmp/seed saves/demo staging/manifest.json
+
+# 5. One transaction: open, write 275 files, commit, re-read and hash them all
+node tools/save-write-stage.cjs runs/switch2-XXXXXX 010042d022aea000 <uid> \
+     saves/demo staging/manifest.json
 ```
 
-Boot the demo, **Load → slot 1**, and the editor appears. Tested exactly this
-way, with all 275 files hashing identical to the release.
+Boot the demo and choose **Load → slot 1**; the title of that slot reads
+**LUA EDITOR V3** and the editor appears. Tested exactly this way on hardware:
+275 files, 4,511,900 bytes, every hash identical to the release, no JKSV, no
+Switch 1 and no Nintendo save transfer.
+
+If step 5 reports `Directory exceeds the N-entry probe limit`, your copy is older
+than the 2048-entry limit — raise it in `tools/save-pull-root.cjs` and
+`tools/save-write-stage.cjs`.
 
 ## Next: untethered
 
-See [docs/NEXT-STEPS.md](docs/NEXT-STEPS.md). The short version: the launcher is
-already installed and survives reboots, so the only thing still tied to
-SmileBASIC is *getting bytes on and off the console*. Splitting the payload into
-a stable boot stub plus an editor-authored `ns2jb.lua` removes the last PC from
-the loop.
+See [docs/NEXT-STEPS.md](docs/NEXT-STEPS.md). The launcher already survives
+reboots, so the only thing still tied to SmileBASIC is *getting bytes on and off
+the console*. Splitting the payload into a stable boot stub plus an
+editor-authored `ns2jb.lua` removes the last PC from the loop.
+
+Status of that split, so nobody has to guess:
+
+- `payloads/ns2jb-stub.lua` (loads `save:/ns2jb.lua`), `payloads/ns2jb.lua`
+  (body), and `tools/build-untethered.sh` (builds all three files from a backup)
+  are written and pass a local smoke test with a mock engine.
+- They are **not yet installed on hardware**. What is proven on hardware is the
+  single-file launcher (`ns2jb.asb`) running Lua at boot, and the editor install.
+- Until the stub is installed, editing the payload still means rewriting
+  `ns2jb.asb` from a host with a held session.
 
 ## Layout
 
