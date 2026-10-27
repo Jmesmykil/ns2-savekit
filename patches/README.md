@@ -11,6 +11,20 @@ that already existed.
 | `0001-shared-ipc-pointer-descriptors.diff` | CMIF/HIPC static "pointer" descriptors in `engine/shared/ipc.cjs`, so a path buffer can be passed by address | creating a file in a save fails with `0x2ee002` |
 | `0002-mounted-save-inspect-export.diff` | exports `inspectMountedFilesystem` from `engine/switch2/app/mounted-save.cjs` | `find-save-uid.cjs` cannot scan for the account uid |
 
+## Robustness and timing patches
+
+`rest-*.diff` are the remaining local changes to the fork. They are not required
+for a first run, but they are what this toolkit was developed against:
+
+| patch | changes |
+| --- | --- |
+| `rest-engine-lib-bridge` | status reports the socket error text |
+| `rest-engine-switch2-app-session` | session records the acquisition state |
+| `rest-engine-switch2-memory-probe-reserved-gap` | extra pin retries and window sizing for the two console layouts |
+| `rest-engine-switch2-retained-find-metadata` | more move attempts before giving up (honours `NS2_METADATA_ATTEMPTS`) |
+| `rest-engine-switch2-ro-ncm` | NCM metadata handling fixes |
+| `rest-run` | `NS2_PAIR_TIMEOUT_MS` so a long wait does not expire mid-setup |
+
 ## Apply
 
 ```sh

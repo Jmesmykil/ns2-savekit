@@ -277,3 +277,27 @@ while a session is held, and it is not needed for anything else.
 3. Seed blob + re-arm (no session).
 4. Re-run the pluto fuzz from the boot payload and read the result on screen.
 5. Only then spend console time on the malformed-BOWS/pluto native targets.
+
+## Why a second save operation can drop the session (investigation)
+
+Symptom: the first save operation of a boot usually succeeds; a second one often
+ends with the host application reporting 2162-0002, or with `console response
+timed out`.
+
+What we can rule out: it is not the command interface (the correct commands and
+shapes are proven - see the save-info reader numbers above), and it is not the
+title or the space (every space behaves the same). What is left is the *lifetime*
+of what we open:
+
+1. each tool opens a save filesystem through the promoted root, then closes it;
+2. each tool creates a session process and then calls cleanup, which tears down
+   the handles it owns;
+3. the promoted root itself lives in the exploited process, so anything that
+   invalidates its handles affects the next operation.
+
+`save-pull-root.cjs --keep-open` exists to tell those apart: it leaves the save
+mounted and skips cleanup, so the next operation runs against a session that was
+never torn down. Comparing `--keep-open` against the default across boots is the
+experiment: if the second operation survives with `--keep-open`, the teardown is
+what kills the session, not the save open itself, and the fix belongs in our
+close/cleanup path rather than in the exploit.

@@ -40,7 +40,9 @@ async function main() {
   let argv = process.argv.slice(2);
   const listOnly = argv.includes('--list-only');
   const listUids = argv.includes('--list-uids');
-  argv = argv.filter(a => a !== '--list-only' && a !== '--list-uids');
+  // Crash investigation knobs: keep the save mounted, keep the session alive.
+  const keepOpen = argv.includes('--keep-open');
+  argv = argv.filter(a => a !== '--list-only' && a !== '--list-uids' && a !== '--keep-open');
   const [runDirectory, programText, outputDirectory, forcedUid] = argv;
   if (!runDirectory || !programText || !outputDirectory) {
     console.error('usage: node save-pull-root.cjs <run-directory> <program-id> <output-directory> ' +
@@ -175,6 +177,10 @@ async function main() {
     await walk('/', outputDirectory);
     console.error(`done: ${files} files, ${bytes} bytes -> ${outputDirectory}`);
   } finally {
+    if (keepOpen) {
+      console.error('--keep-open: leaving the save mounted and the session alive');
+      return;
+    }
     if (save !== null) await s.close(save).catch(() => s.handles.delete(save));
     await s.cleanup().catch(() => {});
   }
