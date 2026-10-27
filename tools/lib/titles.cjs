@@ -81,11 +81,14 @@ function label(id) {
 // Filesystem-safe folder name: the game's own name, not its title id.
 function slug(id) {
   const title = name(id) || String(id);
-  const clean = title.normalize('NFKD')
+  const clean = title.replace(/[\u2122\u00ae]/g, '')   // (TM) / (R) signs
+    .replace(/[\u00e9\u00e8]/gi, 'e')
+    .normalize('NFKD')
     .replace(/[\u0300-\u036f]/g, '')          // strip accents: Pokémon -> Pokemon
     .replace(/[^A-Za-z0-9]+/g, '-')
     .replace(/(^|-)TM(?=-|$)/gi, '$1')       // trademark sign from NFKD
     .replace(/-R$/i, '')
+    .replace(/-TM-/g, '-').replace(/-TM$/i, '')
     .replace(/-+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 64);
