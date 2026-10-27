@@ -141,7 +141,10 @@ async function main() {
       check(Number(opened.canonicalResult) === 0x202,
         'OpenFile for write failed: ' + code(opened.result));
       const made = await createFile(handle, name, bytes.length);
-      check(!made.result, 'CreateFile failed: ' + code(made.result));
+      check(!made.result, 'CreateFile failed: ' + code(made.result) +
+        (Number(made.result) === 0x2ee002
+          ? ' (this ns2jb build lacks the pointer-descriptor patch in shared/ipc.cjs; see docs/PATCHED-ENGINE.md)'
+          : ''));
       opened = await filesystem.pathMethod(s, handle, 8, name, u32(3));
       check(!opened.result, 'Reopen for write failed: ' + code(opened.result));
     }
