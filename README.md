@@ -130,15 +130,15 @@ write permission in one view:
 ```
 9 installed applications  (✔ = write-allowed)
 ---------------------------------------------
-  1) ✔ Nora to Oujo to Noraneko Heart 2 (trial)  (010012900d38a000)
-  2) ✔ Seedsow Lullaby (demo)                     (010042d022aea000)
-  3) ✔ Wagamama High Spec (trial)                 (01005eb012fe2000)
-  4)   Pokémon Sword + Pokémon Sword Expansion Pass (0100abf008968000)
-  5)   SmileBASIC 4 (demo)                        (0100b4b00f9f6000)
-  6)   SmileBASIC 4                               (0100c9100b06a000)
-  7) ✔ Seedsow Lullaby (full)                     (0100ee5021c9e000)
-  8)   Nintendo Switch Sports Resort              (04008e001f098000)
-  9)   Mario Kart™ World                          (0400c3f00006e000)
+  [1] ✔ Nora to Oujo to Noraneko Heart 2 (trial)  (010012900d38a000)
+  [2] ✔ Seedsow Lullaby (demo)                     (010042d022aea000)
+  [3] ✔ Wagamama High Spec (trial)                 (01005eb012fe2000)
+  [4]   Pokémon Sword + Pokémon Sword Expansion Pass (0100abf008968000)
+  [5]   SmileBASIC 4 (demo)                        (0100b4b00f9f6000)
+  [6]   SmileBASIC 4                               (0100c9100b06a000)
+  [7] ✔ Seedsow Lullaby (full)                     (0100ee5021c9e000)
+  [8]   Nintendo Switch Sports Resort              (04008e001f098000)
+  [9]   Mario Kart™ World                          (0400c3f00006e000)
 
 Number 1-9 (blank = quit):
 ```
@@ -147,15 +147,20 @@ Pick a number and that save's options open; asking for the account uid only if i
 is not already remembered:
 
 ```
-1) List files in this save (read-only)
-2) Save: back this save up
-3) Replace: write files from a directory into this save
-4) Install payload files (Artemis launcher)
-5) Install the Seedsow Lua Editor save
-6) Delete a file (optional)
-7) Verify: compare the save with what we wrote
-8) Back to the title list
+Seedsow Lullaby (demo)  (010042d022aea000)
+  1) List files in this save (read-only)      [save op]
+  2) Save: back this save up                   [save op]
+  3) Replace: write files from a directory     [save op]
+  4) Install payload files (Artemis launcher)  [save op]
+  5) Install the Seedsow Lua Editor save       [save op]
+  6) Delete a file (optional)                  [save op]
+  7) Verify: compare the save with what we wrote [save op]
+  8) Back to the title list
 ```
+
+Everything marked `[save op]` opens the save, so **each may be used once per
+console boot** - the marker is there so you pick the one you need instead of
+discovering the limit when the second one crashes the host.
 
 Step 3 is the generic one: point it at any directory of files - a save backup from
 another console, the editor's release, a mod - and it builds the manifest, marks

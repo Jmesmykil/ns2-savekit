@@ -364,14 +364,14 @@ async function replaceFromDirectory(session, title, uid, backup) {
 async function titleLoop(session, title, uid) {
   let backup = null;
   for (;;) {
-    const task = await choose('Title ' + title, [
-      {label: 'List files in this save (read-only)', value: 'list'},
-      {label: 'Save: back this save up', value: 'backup'},
-      {label: 'Replace: write files from a directory into this save', value: 'replace'},
-      {label: 'Install payload files (Artemis launcher)', value: 'launcher'},
-      {label: 'Install the Seedsow Lua Editor save', value: 'editor'},
-      {label: 'Delete a file (optional)', value: 'delete'},
-      {label: 'Verify: compare the save with what we wrote', value: 'verify'},
+    const task = await choose(titles.label(title), [
+      {label: 'List files in this save (read-only)      [save op]', value: 'list'},
+      {label: 'Save: back this save up                     [save op]', value: 'backup'},
+      {label: 'Replace: write files from a directory        [save op]', value: 'replace'},
+      {label: 'Install payload files (Artemis launcher)     [save op]', value: 'launcher'},
+      {label: 'Install the Seedsow Lua Editor save          [save op]', value: 'editor'},
+      {label: 'Delete a file (optional)                     [save op]', value: 'delete'},
+      {label: 'Verify: compare the save with what we wrote  [save op]', value: 'verify'},
       {label: 'Back to the title list', value: 'back'},
     ]);
     if (closed || !task || task.value === 'back') return;
@@ -418,7 +418,7 @@ async function main() {
       break;
     }
     heading(rows.length + ' installed applications  (✔ = write-allowed)');
-    rows.forEach((row, index) => console.log('  ' + (index + 1) + ') ' + row.label));
+    rows.forEach((row, index) => console.log('  [' + (index + 1) + '] ' + row.label));
     const picked = await ask('\nNumber 1-' + rows.length + ' (blank = quit): ');
     if (closed || picked === '') break;
     const index = Number(picked) - 1;
