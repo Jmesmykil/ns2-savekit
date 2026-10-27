@@ -61,52 +61,57 @@ async function main() {
     const fsp = await s.openService('fsp-srv');
     // 1-byte space input, and the 0x40-byte SaveDataInfoFilter, tried against a
     // range of command ids because the numbering differs between fs versions.
-    const oneByte = Buffer.from([1]);                       // SaveDataSpaceId_User
-    const filter = Buffer.alloc(0x40);
-    filter[8] = 1;                                          // space = User
-    filter[9] = 1;                                          // type  = Account
-    const probes = [
-      ['1B', oneByte],
-      ['40', filter],
-    ];
-    for (let command = 55; command <= 64; command++) {
-      for (const [label, payload] of probes) {
-        const reply = await s.ipc('info reader ' + command + '/' + label, fsp, command, payload)
-          .catch(error => ({result: -1, error, moves: []}));
-        const result = Number(reply.canonicalResult ?? reply.result ?? -1) & 0x3fffff;
-        const moves = reply.moves ? reply.moves.length : 0;
-        if (result === 0 && moves > 0) {
-          console.log(`command ${command} (${label} input): OK, ${moves} handle(s)`);
-          const reader = domain.oneHandle(reply);
-          const buffer = s.base + 0x8000;
-          const stride = 0x60;
-          const slots = 32;
-          await s.write(buffer, Buffer.alloc(stride * slots));
-          const read = await s.ipc('read save info', reader, 0, Buffer.alloc(8),
-            {receive: [{address: buffer, size: stride * slots, mode: 0}]}).catch(error => ({result: -1, error}));
-          const readResult = Number(read.canonicalResult ?? read.result ?? -1) & 0x3fffff;
-          console.log(`  read -> ${code(readResult)}`);
-          if (readResult === 0) {
-            const bytes = await s.read(buffer, stride * slots);
-            for (let i = 0; i < slots; i++) {
-              const entry = bytes.subarray(i * stride, (i + 1) * stride);
-              const id = entry.readBigUInt64LE(0);
-              const appId = entry.readBigUInt64LE(0x28);
-              if (!id && !appId) continue;
-              const uid = entry.subarray(0x10, 0x20).toString('hex');
-              const size = entry.readBigUInt64LE(0x30);
-              console.log(`    id=${id} space=${SPACES[entry[8]] ?? entry[8]} ` +
-                `type=${TYPES[entry[9]] ?? entry[9]} uid=${uid} ` +
-                `app=0x${appId.toString(16)} size=${size}`);
-            }
-          }
-          await s.close(reader);
-        } else if (result !== 0x2ee002) {
-          // Anything other than "invalid argument" is interesting: it means the
-          // command exists but wants something different.
-          console.log(`command ${command} (${label} input): ${code(result)} moves=${moves}`);
-        }
+    // switchbrew: 60 OpenSaveDataInfoReader takes NO input, 61
+    // OpenSaveDataInfoReaderBySaveDataSpaceId takes an input u8 space, 68
+    // OpenSaveDataInfoReaderWithFilter takes 0x50 bytes. ReadSaveDataInfo
+    // (reader cmd 0) takes ONLY an output buffer and returns a u64 count.
+    const spaces = [1, 0];                       // User first, then System
+    const sized = length => {const b = Buffer.alloc(length); b[0] = 1; return b;};
+    const candidates = [];
+    candidates.push({command: 60, label: 'no input', payload: Buffer.alloc(0)});
+    for (const space of spaces) {
+      for (const length of [1, 4, 8]) {
+        const payload = Buffer.alloc(length);
+        payload[0] = space;
+        candidates.push({command: 61, label: `space=${space} ${length}B`, payload});
       }
+    }
+    for (const candidate of candidates) {
+      const reply = await s.ipc(`open reader ${candidate.command} ${candidate.label}`,
+        fsp, candidate.command, candidate.payload).catch(error => ({result: -1, error, moves: []}));
+      const result = Number(reply.canonicalResult ?? reply.result ?? -1) & 0x3fffff;
+      const moves = reply.moves ? reply.moves.length : 0;
+      console.log(`cmd ${candidate.command} (${candidate.label}): ${code(result)} moves=${moves}`);
+      if (result !== 0 || moves === 0) continue;
+
+      const reader = domain.oneHandle(reply);
+      try {
+        const buffer = s.base + 0x8000;
+        const stride = 0x38;                     // sizeof(SaveDataInfo)
+        const slots = 64;
+        await s.write(buffer, Buffer.alloc(stride * slots));
+        const read = await s.ipc('ReadSaveDataInfo', reader, 0, Buffer.alloc(0),
+          {receive: [{address: buffer, size: stride * slots, mode: 0}]});
+        const readResult = Number(read.canonicalResult ?? read.result ?? -1) & 0x3fffff;
+        const count = read.data && read.data.length >= 8 ? Number(read.data.readBigUInt64LE()) : -1;
+        console.log(`  ReadSaveDataInfo -> ${code(readResult)} count=${count}`);
+        if (readResult !== 0 || count <= 0) continue;
+        const bytes = await s.read(buffer, stride * Math.min(count, slots));
+        for (let i = 0; i < Math.min(count, slots); i++) {
+          const entry = bytes.subarray(i * stride, (i + 1) * stride);
+          const id = entry.readBigUInt64LE(0);
+          const appId = entry.readBigUInt64LE(0x28);
+          const size = entry.readBigUInt64LE(0x30);
+          const uid = entry.subarray(0x10, 0x20).toString('hex');
+          if (!id && !appId) continue;
+          console.log(`    id=${id} space=${SPACES[entry[8]] ?? entry[8]} ` +
+            `type=${TYPES[entry[9]] ?? entry[9]} uid=${uid} ` +
+            `app=0x${appId.toString(16)} size=${size}`);
+        }
+      } finally {
+        await s.close(reader).catch(() => {});
+      }
+      console.log('  ^ reader works; that is the command and shape to use.');
     }
     console.log('probe finished; command ids that returned OK above are the reader.');
   } finally {
