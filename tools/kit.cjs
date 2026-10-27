@@ -15,6 +15,13 @@ const fs = require('node:fs');
 const path = require('node:path');
 const readline = require('node:readline');
 
+const titles = require('./lib/titles.cjs');
+const ALLOWED = new Set();
+try {
+  const extra = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'titles.json'), 'utf8'));
+  for (const entry of extra.write || []) ALLOWED.add(String(entry.id).toLowerCase());
+} catch { /* allowlist file is optional */ }
+
 const TOOLS = __dirname;
 const REPO = path.resolve(TOOLS, '..');
 const NOTICE = [
@@ -132,8 +139,9 @@ async function pickTitle(session) {
     console.log('No installed applications were listed.');
     return null;
   }
-  const chosen = await choose('Which title? (only allowlisted ids can be written)', ids.map(id => ({
-    label: id,
+  await titles.refresh();
+  const chosen = await choose('Which title?  (✔ = write-allowed)', ids.map(id => ({
+    label: (ALLOWED.has(id.toLowerCase()) ? '✔ ' : '  ') + titles.label(id),
     value: id,
   })));
   return chosen ? chosen.value : null;
@@ -240,15 +248,9 @@ async function main() {
       {label: 'List installed titles', value: 'titles'},
       {label: 'List files in a title save (read-only)', value: 'list'},
       {label: 'Work on one title (backup, write, delete)', value: 'work'},
-      {label: 'Change session', value: 'session'},
       {label: 'Quit', value: 'quit'},
     ]);
     if (closed || !action || action.value === 'quit') break;
-    if (action.value === 'session') {
-      const next = await pickSession();
-      if (next) session = next;
-      continue;
-    }
     if (action.value === 'titles') {
       const result = run('list-apps.cjs', [session]);
       console.log('\n' + result.out.trim());
