@@ -19,6 +19,7 @@ const net = require('node:net');
 const path = require('node:path');
 const {spawnSync} = require('node:child_process');
 
+const titles = require('./lib/titles.cjs');
 const SPACES = {0: 'System', 1: 'User', 2: 'SdSystem', 3: 'Temporary', 4: 'SdUser'};
 const TYPES = {0: 'System', 1: 'Account', 2: 'Bcat', 3: 'Device', 4: 'Temporary', 5: 'Cache'};
 const ATTRIBUTE_SPACE = {1: 1, 0: 0, 2: 2, 3: 1, 4: 1};   // space -> OpenSaveDataFileSystem space
@@ -138,7 +139,9 @@ async function main() {
     return;
   }
   const next = pending[0];
-  const target = path.join(output, next.appId + (next.uid.startsWith('0'.repeat(32)) ? '' : '-' + next.uid));
+  await titles.refresh();
+  const target = path.join(output, titles.slug(next.appId) +
+    (next.uid.startsWith('0'.repeat(32)) ? '' : '-' + next.uid.slice(0, 8)));
   console.log('next: 0x' + next.appId + ' space=' + (SPACES[next.space] ?? next.space) +
     ' type=' + (TYPES[next.type] ?? next.type) + ' uid=' + next.uid +
     ' size=' + next.size + ' -> ' + target);

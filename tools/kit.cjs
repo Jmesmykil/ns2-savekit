@@ -212,7 +212,7 @@ async function pickUid(session, title) {
 }
 
 async function doBackup(session, title, uid) {
-  const suggested = path.join(REPO, 'saves', title);
+  const suggested = path.join(REPO, 'saves', titles.slug(title));
   const dir = await askDefault('Directory for the backup', suggested);
   if (!dir) return null;
   const pullArgs = [session, title, dir, uid];

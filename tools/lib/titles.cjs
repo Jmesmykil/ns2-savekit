@@ -78,4 +78,17 @@ function label(id) {
   return found ? found + '  (' + id + ')' : id;
 }
 
-module.exports = {refresh, name, label, cachePath: CACHE};
+// Filesystem-safe folder name: the game's own name, not its title id.
+function slug(id) {
+  const title = name(id) || String(id);
+  const clean = title.normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')          // strip accents: Pokémon -> Pokemon
+    .replace(/[^A-Za-z0-9]+/g, '-')
+    .replace(/-?TM$|-?R$/i, '')               // trademark suffix from NFKD
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 64);
+  return clean || String(id).toLowerCase();
+}
+
+module.exports = {refresh, name, label, slug, cachePath: CACHE};
