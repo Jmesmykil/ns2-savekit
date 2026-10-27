@@ -69,6 +69,21 @@ add('load ' .. tryload(d))
 add('b1 ' .. tl(1, 10))
 add('b2 ' .. tl(1, 30))
 add('b3 ' .. tl(1, #d - 8))
+local GSCRIPT = 'system/init.lua'
+local dp = '/init-dump.lua'
+local ip = base..dp
+local txt = nil
+pcall(function()
+  txt = e:file(GSCRIPT)
+end)
+add('init ' .. type(txt))
+if type(txt) == 'string' then
+  local f3 = io.open(ip,'wb')
+  if f3 then
+    f3:write(txt)
+    f3:close()
+  end
+end
 local p = '/ns2jb-report.txt'
 local f = io.open(base..p,'wb')
 if f then
