@@ -129,17 +129,28 @@ pull a backup, and only then offer writes - each showing the exact file list and
 asking for confirmation.
 
 ```
-Which session?
-  1) newest: switch2-XXXXXX
-  2) switch2-YYYYYY   /path/to/runs/switch2-YYYYYY
-
 What do you want to do?
   1) List installed titles
-  2) List save archives known to FS
+  2) List files in a title save (read-only)
   3) Work on one title (backup, write, delete)
-  4) Change session
-  5) Quit
+  4) Quit
+
+Which title?  (✔ = write-allowed)
+  1) ✔ 010012900d38a000
+  2) ✔ 010042d022aea000
+  4)   Pokémon Sword + Pokémon Sword Expansion Pass  (0100abf008968000)
+  7) ✔ Seedsow Lullaby  (0100ee5021c9e000)
+  9)   Mario Kart™ World  (0400c3f00006e000)
 ```
+
+Game names come from the community [titledb](https://github.com/blawar/titledb)
+(`US.en.json`, fetched once and cached locally, reused offline); ids titledb does
+not carry - demos, some Switch 2 titles - fall back to the bare id. The ✔ marks
+the ids in `config/titles.json` that may be written to; everything else is
+read-only.
+
+The newest held session is selected automatically. Pass one if you need a
+specific run folder: `node tools/kit.cjs runs/switch2-XXXXXX`.
 
 Inside a title:
 
