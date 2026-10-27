@@ -143,11 +143,9 @@ async function doBackup(session, title, uid) {
   return dir;
 }
 
-async function writeManifest(session, title, uid, backup) {
-  const manifest = await askDefault('Manifest to write (built with build-editor-manifest.py or build-untethered.sh)');
-  if (!manifest) return;
-  if (!fs.existsSync(manifest)) {
-    console.log('no such file: ' + manifest);
+async function writeFiles(session, title, uid, backup, manifest) {
+  if (!manifest || !fs.existsSync(manifest)) {
+    console.log('no such manifest: ' + manifest);
     return;
   }
   const parsed = JSON.parse(fs.readFileSync(manifest, 'utf8'));
@@ -158,6 +156,12 @@ async function writeManifest(session, title, uid, backup) {
   if (!(await confirm('Proceed? This commits one transaction'))) return;
   const result = run('save-write-stage.cjs', [session, title, uid, backup, manifest], {stdio: 'inherit'});
   console.log(result.ok ? '\ncommitted' : '\nwrite failed - see the message above');
+}
+
+async function writeManifest(session, title, uid, backup) {
+  const manifest = await askDefault('Manifest to write (built with build-editor-manifest.py or build-untethered.sh)');
+  if (!manifest) return;
+  await writeFiles(session, title, uid, backup, manifest);
 }
 
 async function doDelete(session, title, uid) {
@@ -177,7 +181,7 @@ async function installLauncher(session, title, uid, backup) {
   const built = spawnSync('/bin/sh', [path.join(TOOLS, 'build-untethered.sh'), backup, out], {encoding: 'utf8'});
   console.log((built.stdout || '') + (built.stderr || ''));
   if (built.status !== 0) return;
-  await writeManifest(session, title, uid, backup);
+  await writeFiles(session, title, uid, backup, path.join(out, 'manifest.json'));
 }
 
 async function installEditor(session, title, uid, backup) {
@@ -191,7 +195,7 @@ async function installEditor(session, title, uid, backup) {
   const built = spawnSync('python3', [path.join(TOOLS, 'build-editor-manifest.py'), source, backup, manifest], {encoding: 'utf8'});
   console.log((built.stdout || '') + (built.stderr || ''));
   if (built.status !== 0) return;
-  await writeManifest(session, title, uid, backup);
+  await writeFiles(session, title, uid, backup, manifest);
 }
 
 async function main() {
