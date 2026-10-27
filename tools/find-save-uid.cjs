@@ -4,6 +4,7 @@
 //
 //   node find-save-uid.cjs <run-directory> [program-id]
 const fs = require('node:fs/promises');
+const {spawnSync} = require('node:child_process');
 const path = require('node:path');
 const net = require('node:net');
 
@@ -26,6 +27,25 @@ function request(socketPath, command) {
   });
 }
 
+// Bulletproof fallback: the account service lists every user without touching a
+// save or mounts.json, so the uid can still be discovered when the mounted-save
+// patch (or its captured file) is missing.
+function listUidsFromAccount(runDirectory) {
+  const result = spawnSync(process.execPath,
+    [path.join(__dirname, 'save-pull-root.cjs'), runDirectory, '0000000000000000',
+      '.', '--list-uids'], {encoding: 'utf8'});
+  const uids = (result.stdout || '').split('\n')
+    .map(line => line.trim()).filter(line => /^[0-9a-f]{32}$/i.test(line));
+  if (uids.length === 0) {
+    console.error('account service returned no uids either.');
+    console.error('Pass the 32-hex account uid by hand, or apply patches/0001+0002.');
+    return 0;
+  }
+  for (const uid of uids) console.log(uid);
+  console.error('uids from the account service (one of these owns the save)');
+  return 0;
+}
+
 async function main() {
   const [runDirectory, programText = '0100c9100b06a000'] = process.argv.slice(2);
   const engine = path.resolve(runDirectory, 'switch2');
@@ -39,10 +59,9 @@ async function main() {
     mounted = {importError: error.message};
   }
   if (typeof mounted.inspectMountedFilesystem !== 'function') {
-    console.error('This ns2jb build has no mounted-save inspection.');
-    console.error('The uid scan needs the patched app/mounted-save.cjs (see');
-    console.error('docs/PATCHED-ENGINE.md). Pass the account uid by hand instead.');
-    process.exit(0);
+    console.error('no mounted-save inspection in this build - falling back to the');
+    console.error('account service (see docs/PATCHED-ENGINE.md for the patch).');
+    process.exit(listUidsFromAccount(runDirectory));
   }
 
   const {Session} = require(path.join(engine, 'app/session.cjs'));

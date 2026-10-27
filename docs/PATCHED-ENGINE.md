@@ -15,8 +15,10 @@ actions and fail for others, so the set is listed here.
 ## Symptoms
 
 - `mounted.inspectMountedFilesystem is not a function` — the uid scan helper is
-  missing. Pass the 32-hex account uid to `save-pull-root.cjs` and
-  `save-write-stage.cjs` yourself; everything else still works.
+  missing. `find-save-uid.cjs` does not stop there: it falls back to the account
+  service (`save-pull-root.cjs --list-uids`), which lists every user without
+  touching a save or `mounts.json`. If that also returns nothing, pass the 32-hex
+  uid by hand; everything else still works.
 - `OpenFile for write failed: 0x2ee002` or `CreateFile failed: 0x2ee002` — the
   pointer-descriptor patch is missing, so new files cannot be created. Adding a
   file to a save needs it; reading a save does not.

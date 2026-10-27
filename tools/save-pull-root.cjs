@@ -39,7 +39,8 @@ const TYPES = {0: 'System', 1: 'Account', 2: 'Bcat', 3: 'Device', 4: 'Temporary'
 async function main() {
   let argv = process.argv.slice(2);
   const listOnly = argv.includes('--list-only');
-  argv = argv.filter(a => a !== '--list-only');
+  const listUids = argv.includes('--list-uids');
+  argv = argv.filter(a => a !== '--list-only' && a !== '--list-uids');
   const [runDirectory, programText, outputDirectory, forcedUid] = argv;
   if (!runDirectory || !programText || !outputDirectory) {
     console.error('usage: node save-pull-root.cjs <run-directory> <program-id> <output-directory> ' +
@@ -82,6 +83,11 @@ async function main() {
     console.error('account users:', uids.length);
   } catch (error) {
     console.error('account enumeration failed:', error.message);
+  }
+  if (listUids) {
+    for (const uid of uids) console.log(uid.toString('hex'));
+    await s.cleanup().catch(() => {});
+    return;
   }
   if (forcedUid) uids.splice(0, uids.length, Buffer.from(forcedUid.replace(/^0x/i, ''), 'hex'));
   if (!uids.length) uids.push(Buffer.alloc(16));
