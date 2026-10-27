@@ -1,26 +1,36 @@
 #!/bin/sh
 # Build the untethered launcher set for one save:
-#   ns2jb.asb     stub ASB that loads save:/ns2jb.lua
-#   ns2jb.lua     body, editable on the console
-#   save9999.dat  suspend launcher resuming at save:/ns2jb.asb
-#   manifest.json for tools/save-write-stage.cjs
+#   ns2jb.asb      stub ASB; runs the slot-4 program, else ns2jb.lua
+#   sscode004.lua  the body as editor slot 4 (console-editable, Save + publish)
+#   ns2jb.lua      the same body as a direct file (fallback)
+#   save9999.dat   suspend launcher resuming at save:/ns2jb.asb
+#   manifest.json  for tools/save-write-stage.cjs
 #   ./tools/build-untethered.sh <backup-directory> <output-directory>
 set -eu
 base=${1:?usage: build-untethered.sh <backup-directory> <output-directory>}
 out=${2:?usage: build-untethered.sh <backup-directory> <output-directory>}
 here=$(dirname "$0")
+body="$here/../payloads/ns2jb.lua"
+stub="$here/../payloads/ns2jb-stub.lua"
 mkdir -p "$out"
-python3 "$here/artemis-save.py" asb "$here/../payloads/ns2jb-stub.lua" ns2jb_boot "$out/ns2jb.asb"
-cp "$here/../payloads/ns2jb.lua" "$out/ns2jb.lua"
+python3 "$here/artemis-save.py" asb "$stub" ns2jb_boot "$out/ns2jb.asb"
+cp "$body" "$out/ns2jb.lua"
+cp "$body" "$out/sscode004.lua"
 python3 "$here/artemis-save.py" launch "$base/autosave.dat" ns2jb.asb "$out/save9999.dat"
-python3 - "$out" <<'PY'
-import json, sys
-out = sys.argv[1]
+python3 - "$out" "$base" <<'PY'
+import json, os, sys
+out, base = sys.argv[1], sys.argv[2]
+present = set(os.listdir(base)) if os.path.isdir(base) else set()
+files = []
+for name in ('ns2jb.asb', 'save9999.dat', 'ns2jb.lua', 'sscode004.lua'):
+    entry = {'path': '/' + name, 'local': os.path.join(out, name)}
+    if name in present:
+        entry['replace'] = True
+    files.append(entry)
 json.dump({'title': 'Seedsow Lullaby demo -- untethered launcher',
-           'purpose': 'boot stub + on-console body + suspend launcher',
-           'files': [{'path': '/ns2jb.asb', 'local': out + '/ns2jb.asb'},
-                     {'path': '/ns2jb.lua', 'local': out + '/ns2jb.lua'},
-                     {'path': '/save9999.dat', 'local': out + '/save9999.dat'}]},
-          open(out + '/manifest.json', 'w'), indent=2)
+           'purpose': 'boot stub + editor slot 4 body + suspend launcher',
+           'files': files}, open(os.path.join(out, 'manifest.json'), 'w'), indent=2)
+print('manifest files: ' + ', '.join(
+    f['path'] + (' (replace)' if f.get('replace') else ' (add)') for f in files))
 PY
 echo "built $out/manifest.json"
