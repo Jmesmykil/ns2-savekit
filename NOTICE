@@ -10,7 +10,9 @@ ns2jb -- upstream exploit, NOT vendored here.
 
 Seedsow Lua Editor -- reference save and format documentation, NOT bundled.
     https://github.com/DialingSpoon527/seedsow-lua-editor
-    Licensed BSD Zero Clause (0BSD). tools/fetch-editor-save.sh downloads the
+    By DialingSpoon527. Licensed BSD Zero Clause (0BSD).
+    Its save format notes and tools/asb.py + tools/indexed_save.py are the basis
+    for tools/artemis-save.py; credit belongs there, not here. tools/fetch-editor-save.sh downloads the
     official release from GitHub at run time; no third-party save is included in
     this repository. The ASB container layout and the save-caret retarget used by
     tools/artemis-save.py were derived from that project's tools/asb.py and

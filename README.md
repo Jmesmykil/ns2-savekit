@@ -142,6 +142,20 @@ Status of that split, so nobody has to guess:
 - Until the stub is installed, editing the payload still means rewriting
   `ns2jb.asb` from a host with a held session.
 
+## Credits
+
+- **[Seedsow Lua Editor](https://github.com/DialingSpoon527/seedsow-lua-editor)** by
+  [DialingSpoon527](https://github.com/DialingSpoon527) — BSD Zero Clause (0BSD).
+  This project would not exist without it: its save format notes and
+  `tools/asb.py` / `tools/indexed_save.py` are the basis for
+  `tools/artemis-save.py`, and its released save is what we install to prove the
+  write path end to end. The save itself is **downloaded from their release**,
+  never bundled here — see `tools/fetch-editor-save.sh`. If you want to run Lua
+  on the console with a proper editor UI, use their project.
+- **[ns2jb](https://gitlab.com/kurumuz/ns2jb)** (kurumuz) — the exploit that gives
+  the held session every tool here talks to. Not vendored; fetched from upstream.
+- **Artemis engine** — no code or assets included; no affiliation.
+
 ## Layout
 
 ```
