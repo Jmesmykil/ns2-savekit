@@ -1,0 +1,27 @@
+Third parties
+=============
+
+ns2jb -- upstream exploit, NOT vendored here.
+    https://gitlab.com/kurumuz/ns2jb
+    The tools in tools/ require a run folder produced by `node run.cjs --rpc`.
+    They speak to the held session's memory socket and bridge; they do not
+    contain, modify, or reimplement the exploit. Obtain it from upstream and
+    follow its licence.
+
+Seedsow Lua Editor -- reference save and format documentation, NOT bundled.
+    https://github.com/DialingSpoon527/seedsow-lua-editor
+    Licensed BSD Zero Clause (0BSD). tools/fetch-editor-save.sh downloads the
+    official release from GitHub at run time; no third-party save is included in
+    this repository. The ASB container layout and the save-caret retarget used by
+    tools/artemis-save.py were derived from that project's tools/asb.py and
+    tools/indexed_save.py, with the index field order corrected and relocation
+    applied on write.
+
+Artemis engine -- Valve's engine, used by the target games.
+    No game code, assets, keys or save data are included in this repository.
+    No affiliation with or endorsement by the engine's authors or the games'
+    publishers is implied.
+
+Nintendo Switch 2 -- no keys, tickets, or system files are included, and nothing
+here defeats encryption. Bytes are moved only where the operating system already
+exposes them to the running application.

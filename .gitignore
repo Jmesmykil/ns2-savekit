@@ -1,0 +1,8 @@
+runs/
+saves/
+staging*/
+build/
+__pycache__/
+*.pyc
+*.part
+*.log
