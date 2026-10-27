@@ -169,6 +169,11 @@ up yet, so installing the editor save or the payload files is one choice rather
 than "back up, then install": the backup is taken inside the same action, then the
 files are built from it and written in one commit.
 
+The editor install also **fetches its own release** when the directory is missing
+or empty - `tools/fetch-editor-save.sh` pulls the official 0BSD zip from GitHub
+into `~/.cache/ns2-savekit/seedsow-editor`, so there is nothing to download by
+hand. Point it at an existing directory only if you want a specific copy.
+
 Step 3 is the generic one: point it at any directory of files - a save backup from
 another console, the editor's release, a mod - and it builds the manifest, marks
 what already exists as a verified replace, and writes it in one commit.

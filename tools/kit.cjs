@@ -298,7 +298,19 @@ async function installEditor(session, title, uid, backup) {
     console.log('so the stub would then run the editor example - re-run the payload install');
     console.log('(option 4) after this to claim slot 4 again.');
   }
-  const source = await askDefault('Directory with the editor save (fetch it first)', '/tmp/seed');
+  const cache = path.join(require('node:os').homedir(), '.cache', 'ns2-savekit', 'seedsow-editor');
+  const source = await askDefault('Directory with the editor save (blank = fetch it for me)', cache);
+  const present = fs.existsSync(source) && fs.readdirSync(source).some(n => !n.startsWith('.'));
+  if (!present) {
+    console.log('\nno editor save at ' + source + ' - fetching the official release (0BSD):');
+    echoCommand('tools/fetch-editor-save.sh ' + quote(source));
+    const fetched = spawnSync('/bin/sh', [path.join(TOOLS, 'fetch-editor-save.sh'), source],
+      {encoding: 'utf8', stdio: 'inherit'});
+    if (fetched.status !== 0) {
+      console.log('fetch failed - check the network, or point the action at a directory you already have.');
+      return;
+    }
+  }
   const manifest = path.join(REPO, 'staging', 'editor-manifest.json');
   fs.mkdirSync(path.dirname(manifest), {recursive: true});
   const built = spawnSync('python3', [path.join(TOOLS, 'build-editor-manifest.py'), source, backup, manifest], {encoding: 'utf8'});
