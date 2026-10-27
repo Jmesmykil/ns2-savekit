@@ -32,6 +32,12 @@ async function main() {
   const current = JSON.parse(await fs.readFile(path.join(engine, 'current-acquisition.json'), 'utf8'));
   const {Session} = require(path.join(engine, 'app/session.cjs'));
   const mounted = require(path.join(engine, 'app/mounted-save.cjs'));
+  if (typeof mounted.inspectMountedFilesystem !== 'function') {
+    console.error('This ns2jb build has no mounted-save inspection.');
+    console.error('The uid scan needs the patched app/mounted-save.cjs (see');
+    console.error('docs/PATCHED-ENGINE.md). Pass the account uid by hand instead.');
+    process.exit(0);
+  }
 
   await request(current.socketPath, {command: 'root-native-info'});
   const s = new Session('uid-scan-' + Date.now(), 0x80000);

@@ -67,6 +67,16 @@ The promoted-root save path occasionally crashes the *host* application
 (`2162-0002`, roughly 3 in 5 attempts on our unit). One save operation per boot,
 and restart the console after a crash.
 
+
+### If a tool reports a missing engine function
+
+Some helpers use engine patches that upstream ns2jb does not carry - most often
+`mounted.inspectMountedFilesystem is not a function` when scanning for the
+account uid, or `0x2ee002` when creating a new file. See
+[docs/PATCHED-ENGINE.md](docs/PATCHED-ENGINE.md): reading a save works with plain
+upstream if you pass the uid yourself, creating files needs the patched
+`shared/ipc.cjs`.
+
 ## Quick start
 
 Two things are needed before anything else: an exploit session held open, and
