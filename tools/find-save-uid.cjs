@@ -30,8 +30,14 @@ async function main() {
   const [runDirectory, programText = '0100c9100b06a000'] = process.argv.slice(2);
   const engine = path.resolve(runDirectory, 'switch2');
   const current = JSON.parse(await fs.readFile(path.join(engine, 'current-acquisition.json'), 'utf8'));
-  const {Session} = require(path.join(engine, 'app/session.cjs'));
-  const mounted = require(path.join(engine, 'app/mounted-save.cjs'));
+  let mounted = {};
+  try {
+    mounted = require(path.join(engine, 'app/mounted-save.cjs'));
+  } catch (error) {
+    // Upstream builds have no mounted-save inspection module (or it throws on
+    // import outside a live boot); both mean the uid scan is unavailable.
+    mounted = {importError: error.message};
+  }
   if (typeof mounted.inspectMountedFilesystem !== 'function') {
     console.error('This ns2jb build has no mounted-save inspection.');
     console.error('The uid scan needs the patched app/mounted-save.cjs (see');
@@ -39,6 +45,7 @@ async function main() {
     process.exit(0);
   }
 
+  const {Session} = require(path.join(engine, 'app/session.cjs'));
   await request(current.socketPath, {command: 'root-native-info'});
   const s = new Session('uid-scan-' + Date.now(), 0x80000);
   s.record = async () => {};
