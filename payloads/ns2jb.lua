@@ -33,6 +33,23 @@ add('lua ' .. _VERSION)
 add('save ' .. base)
 add('game ' .. tostring(game))
 add('t ' .. tostring(os.time()))
+local card = '?'
+local sp = 'sd:/ns2jb.txt'
+pcall(function()
+  local h = io.open('sd:/','rb')
+  if h then h:close() end
+  card = h and 'open' or 'no'
+end)
+add('sd ' .. card)
+pcall(function()
+  local h = io.open(sp,'wb')
+  if not h then return end
+  h:write('ns2jb sd probe\n')
+  h:flush()
+  h:close()
+  card = card .. '+w'
+end)
+add('sdw ' .. card)
 local p = '/ns2jb-report.txt'
 local f = io.open(base..p,'wb')
 if f then
