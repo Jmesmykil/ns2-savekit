@@ -32,6 +32,15 @@ const NOTICE = [
   'save operation per boot and restart the console after a crash.',
 ].join('\n');
 
+function quote(value) {
+  const text = String(value);
+  return /^[A-Za-z0-9_@%+=:,./-]+$/.test(text) ? text : "'" + text.replace(/'/g, "'\\''") + "'";
+}
+// Print the exact command an action runs, so it can be copied and re-run by hand
+// (and so nothing happens that the user cannot see).
+function echoCommand(command) {
+  console.log('\n$ ' + command);
+}
 function run(script, args, options = {}) {
   const result = spawnSync(process.execPath, [path.join(TOOLS, script), ...args], {
     encoding: 'utf8',
@@ -198,8 +207,9 @@ async function doBackup(session, title, uid) {
   const suggested = path.join(REPO, 'saves', title);
   const dir = await askDefault('Directory for the backup', suggested);
   if (!dir) return null;
-  console.log('\npulling (read-only, never commits) ...\n');
-  const result = run('save-pull-root.cjs', [session, title, dir, uid], {stdio: 'inherit'});
+  const pullArgs = [session, title, dir, uid];
+  echoCommand('node tools/save-pull-root.cjs ' + pullArgs.map(quote).join(' '));
+  const result = run('save-pull-root.cjs', pullArgs, {stdio: 'inherit'});
   if (!result.ok) {
     console.log('\npull failed - see the message above');
     return null;
@@ -220,7 +230,9 @@ async function writeFiles(session, title, uid, backup, manifest) {
     console.log(`  ${file.path}${file.replace ? '   (replace, verified)' : '   (add)'}`);
   }
   if (!(await confirm('Proceed? This commits one transaction'))) return;
-  const result = run('save-write-stage.cjs', [session, title, uid, backup, manifest], {stdio: 'inherit'});
+  const writeArgs = [session, title, uid, backup, manifest];
+  echoCommand('node tools/save-write-stage.cjs ' + writeArgs.map(quote).join(' '));
+  const result = run('save-write-stage.cjs', writeArgs, {stdio: 'inherit'});
   console.log(result.ok ? '\ncommitted' : '\nwrite failed - see the message above');
   saveOpDone();
 }
@@ -235,7 +247,9 @@ async function doDelete(session, title, uid) {
   const target = await askDefault('File to delete at the save root (e.g. /save9999.dat)');
   if (!target) return;
   if (!(await confirm('Delete ' + target + ' from ' + title))) return;
-  const result = run('save-delete-root.cjs', [session, title, uid, target], {stdio: 'inherit'});
+  const deleteArgs = [session, title, uid, target];
+  echoCommand('node tools/save-delete-root.cjs ' + deleteArgs.map(quote).join(' '));
+  const result = run('save-delete-root.cjs', deleteArgs, {stdio: 'inherit'});
   console.log(result.ok ? '\ndeleted' : '\ndelete failed');
   saveOpDone();
 }
@@ -246,6 +260,7 @@ async function installLauncher(session, title, uid, backup) {
     return;
   }
   const out = path.join(REPO, 'staging', path.basename(backup));
+  echoCommand('tools/build-untethered.sh ' + quote(backup) + ' ' + quote(out));
   const built = spawnSync('/bin/sh', [path.join(TOOLS, 'build-untethered.sh'), backup, out], {encoding: 'utf8'});
   console.log((built.stdout || '') + (built.stderr || ''));
   if (built.status !== 0) return;
@@ -293,8 +308,9 @@ async function main() {
       if (!title) continue;
       const uid = await pickUid(session, title);
       if (!uid) continue;
-      const listed = run('save-pull-root.cjs', [session, title, '.', uid, '--list-only'],
-        {stdio: 'inherit'});
+      const listArgs = [session, title, '.', uid, '--list-only'];
+      echoCommand('node tools/save-pull-root.cjs ' + listArgs.map(quote).join(' '));
+      const listed = run('save-pull-root.cjs', listArgs, {stdio: 'inherit'});
       if (!listed.ok) {
         console.log('\nlisting failed. If this is not the first save operation in this boot,');
         console.log('restart the console: a second operation crashes the host (2162-0002) or');
