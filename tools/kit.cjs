@@ -56,7 +56,20 @@ function findRuns() {
 const rl = readline.createInterface({input: process.stdin, output: process.stdout});
 let closed = false;
 rl.on('close', () => { closed = true; });
-const ask = question => new Promise(resolve => rl.question(question, answer => resolve(answer.trim())));
+// Lines are queued, not awaited one at a time: a piped script delivers every
+// answer before the first question is printed, and rl.question would drop them.
+const pending = [];
+const waiting = [];
+rl.on('line', line => {
+  if (waiting.length) waiting.shift()(line);
+  else pending.push(line);
+});
+function ask(question) {
+  process.stdout.write(question);
+  if (pending.length) return Promise.resolve(pending.shift().trim());
+  if (closed) return Promise.resolve('');
+  return new Promise(resolve => waiting.push(line => resolve(line.trim())));
+}
 async function askDefault(question, fallback) {
   const answer = await ask(`${question}${fallback ? ` [${fallback}]` : ''}: `);
   return answer === '' ? fallback : answer;
