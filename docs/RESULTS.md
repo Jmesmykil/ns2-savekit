@@ -97,6 +97,52 @@ the small exefs):
 | `updates/65536/romfs` | 48,576 | 9.8 GB | `fa64d245cc0edccf…` |
 | `updates/65536/exefs` | 9 | — | `41e479786dac1054…` |
 
+## Untethered boot launcher in the demo save
+
+Installed into `010042d022aea000` in one transaction, all four files verified
+against a fresh backup before replacement and hashed back after the commit:
+
+| file | bytes | sha256 (prefix) | role |
+| --- | --- | --- | --- |
+| `/ns2jb.asb` | 1946 | `f800caa253ec0c3a…` | stub: runs the slot-4 program, else `ns2jb.lua` |
+| `/save9999.dat` | 27917 | `f19634f017d17b54…` | suspend launcher: `system/script.asb` #42 → `save:/ns2jb.asb` #1 |
+| `/ns2jb.lua` | 1344 | `950fbade47f814af…` | body (fallback path) |
+| `/sscode004.lua` | 1344 | `950fbade47f814af…` | body as editor slot 4 (`ssslot004.ref` names it) |
+
+`commit -> 0x0`. The stub resolves its program through `ssslot004.ref`, so the
+editor owns the loop: Choose slot 4, edit, Save + publish, restart.
+
+## Console authoring limits and the editor's save path
+
+The engine's text-entry dialog returns **at most 32 characters per entry**, and
+the editor passes `textfieldsize='2048'` in vain. `Edit line` therefore replaces
+a line with at most 32 characters and silently truncates longer ones, which is
+why the payload is written with every line <= 32 characters.
+
+The editor's own storage sequence was observed end to end: after one `Save file`
+the save contained
+
+```
+ns2jb.lua      1142   (the saved edit)
+ns2jb.lua.bak  1197   (previous version, kept for Restore .bak)
+ns2jb.lua.new  1142   (staging copy, left behind)
+```
+
+so console-side saves do complete, and a bad save has a one-generation undo.
+
+## SD card is not reachable from the game
+
+With the microSD **inserted**, boot-time Lua reported:
+
+```
+sd no
+sdw no
+```
+
+The game's VFS exposes `save:` and resolves `game:`, but not `sd:`. There is no
+file channel to the card, so payload output cannot leave the save without an
+exploit session (or the screen).
+
 ## Failure modes observed (worth knowing before you try)
 
 | Symptom | Cause | What fixed it |
