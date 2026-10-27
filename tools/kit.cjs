@@ -222,6 +222,7 @@ async function main() {
   for (;;) {
     const action = await choose('What do you want to do?', [
       {label: 'List installed titles', value: 'titles'},
+      {label: 'List files in a title save (read-only)', value: 'list'},
       {label: 'Work on one title (backup, write, delete)', value: 'work'},
       {label: 'Change session', value: 'session'},
       {label: 'Quit', value: 'quit'},
@@ -237,9 +238,12 @@ async function main() {
       console.log('\n' + result.out.trim());
       continue;
     }
-    if (action.value === 'archives') {
-      const result = run('save-list.cjs', [session]);
-      console.log('\n' + result.out.trim());
+    if (action.value === 'list') {
+      const title = await pickTitle(session);
+      if (!title) continue;
+      const uid = await pickUid(session, title);
+      if (!uid) continue;
+      run('save-pull-root.cjs', [session, title, '.', uid, '--list-only'], {stdio: 'inherit'});
       continue;
     }
     const title = await pickTitle(session);

@@ -37,9 +37,13 @@ const SPACES = {0: 'System', 1: 'User', 2: 'SdSystem', 3: 'Temporary', 4: 'SdUse
 const TYPES = {0: 'System', 1: 'Account', 2: 'Bcat', 3: 'Device', 4: 'Temporary', 5: 'Cache'};
 
 async function main() {
-  const [runDirectory, programText, outputDirectory, forcedUid] = process.argv.slice(2);
+  let argv = process.argv.slice(2);
+  const listOnly = argv.includes('--list-only');
+  argv = argv.filter(a => a !== '--list-only');
+  const [runDirectory, programText, outputDirectory, forcedUid] = argv;
   if (!runDirectory || !programText || !outputDirectory) {
-    console.error('usage: node save-pull-root.cjs <run-directory> <program-id> <output-directory>');
+    console.error('usage: node save-pull-root.cjs <run-directory> <program-id> <output-directory> ' +
+      '[uid-hex] [--list-only]');
     process.exit(2);
   }
   const run = path.resolve(runDirectory);
@@ -111,6 +115,28 @@ async function main() {
     console.error(`mounted space=${SPACES[chosen.space] ?? chosen.space} ` +
       `type=${TYPES[chosen.type] ?? chosen.type} uid=${chosen.uid.toString('hex')}`);
 
+    if (listOnly) {
+      let count = 0, total = 0;
+      async function show(directory) {
+        const entries = await filesystem.listDirectory(s, save, directory, 2048);
+        for (const entry of entries) {
+          const full = (directory.endsWith('/') ? directory : directory + '/') + entry.name;
+          const opened = await filesystem.openFile(s, save, full);
+          if (!opened.result) {
+            const size = Number(await filesystem.fileSize(s, opened.handle));
+            await s.close(opened.handle).catch(() => s.handles.delete(opened.handle));
+            console.log(`${String(size).padStart(9)}  ${full}`);
+            count += 1; total += size;
+          } else {
+            console.log(`${'<dir>'.padStart(9)}  ${full}/`);
+            await show(full);
+          }
+        }
+      }
+      await show('/');
+      console.log(`listed ${count} files, ${total} bytes (read-only, nothing written)`);
+      return;
+    }
     await fs.mkdir(outputDirectory, {recursive: true});
     let files = 0, bytes = 0;
     async function walk(directory, disk) {
