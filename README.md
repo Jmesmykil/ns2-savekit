@@ -250,6 +250,25 @@ The launcher blob comes from the backup's `autosave.dat`, or from its newest
 `saveNNNN.dat` when the title never wrote an autosave (Nora only has slot 1).
 
 
+### The two installs are different things
+
+They share the mechanism - write files into a save so the game runs Lua - but the
+artefacts and the purpose differ.
+
+| | option 4: payload files | option 5: Seedsow Lua Editor save |
+| --- | --- | --- |
+| what | 4 files: `ns2jb.asb` (stub), `save9999.dat` (launcher), `ns2jb.lua` and `sscode004.lua` (body) | 275 files: `sed01-03.asb`, `ssedit1-3.lua`, `ssseed*.bin`, `ss*.asb`, slots 1-3 launchers |
+| who made it | this repository | [DialingSpoon527's editor](https://github.com/DialingSpoon527/seedsow-lua-editor) (fetched, not bundled) |
+| gets you | headless: our body runs at every boot, no UI, no console authoring | a console-side editor: type Lua with the game's keyboard, slots 4-120, Save + publish |
+| footprint | replaces nothing but slot 4 | replaces slots 1-3 and adds its own files |
+
+**Order matters if you want both.** Install the editor first (it writes slot 4's
+hello example), then the payload (which takes slot 4 for its body). Do it the
+other way round and the editor's install puts the example back, and the stub will
+happily run "Hello from a persistent Lua slot!" instead of your payload. Having
+both is the intended end state: the editor authors `sscode004.lua`, the stub runs
+it at boot.
+
 ## Install the Seedsow Lua Editor save
 
 Requirements: `node` 20+, `python3`, `curl`, `unzip`, and a held ns2jb session
