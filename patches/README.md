@@ -29,5 +29,10 @@ Nothing else in the toolkit depends on patched engine code: `save-pull-root.cjs`
 `list-apps.cjs`, `save-delete-root.cjs` and the encoders work on an unpatched
 checkout, but adding files to a save needs patch 1.
 
-Verified: the toolkit's write path ran on hardware with both patches applied
-(four commits, all read back and hashed).
+## Verified
+
+Both patches applied cleanly to a fresh clone of upstream (`81d5bb1`) with
+`git apply -3`, and the two patched files are then **byte-identical** to the ones
+this toolkit was developed and tested against. So the hardware evidence in
+`docs/RESULTS.md` - four committed writes, all read back and hashed, plus the
+275-file editor install - applies to a patched upstream checkout exactly.
