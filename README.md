@@ -148,6 +148,7 @@ is not already remembered:
 
 ```
 Seedsow Lullaby (demo)  (010042d022aea000)
+  (CHOOSE ONE, ONLY ONE SAVE OPERATION IS ALLOWED PER SESSION)
   1) List files in this save (read-only)      [save op]
   2) Save: back this save up                   [save op]
   3) Replace: write files from a directory     [save op]
@@ -159,8 +160,14 @@ Seedsow Lullaby (demo)  (010042d022aea000)
 ```
 
 Everything marked `[save op]` opens the save, so **each may be used once per
-console boot** - the marker is there so you pick the one you need instead of
-discovering the limit when the second one crashes the host.
+console boot** - the marker, and the line above the menu, are there so you pick
+the one you need instead of discovering the limit when the second one crashes the
+host.
+
+The two install actions **back the save up themselves** if you have not backed it
+up yet, so installing the editor save or the payload files is one choice rather
+than "back up, then install": the backup is taken inside the same action, then the
+files are built from it and written in one commit.
 
 Step 3 is the generic one: point it at any directory of files - a save backup from
 another console, the editor's release, a mod - and it builds the manifest, marks

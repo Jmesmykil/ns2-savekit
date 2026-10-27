@@ -268,8 +268,9 @@ async function doDelete(session, title, uid) {
 
 async function installLauncher(session, title, uid, backup) {
   if (!backup) {
-    console.log('A backup is required first (it is the base the launcher is built from).');
-    return;
+    console.log('No backup yet: pulling one now (the launcher is built from it).');
+    backup = await doBackup(session, title, uid);
+    if (!backup) return;
   }
   const editor = fs.existsSync(path.join(backup, 'ssedit1.lua')) ||
                  fs.existsSync(path.join(backup, 'sed01.asb'));
@@ -288,8 +289,9 @@ async function installLauncher(session, title, uid, backup) {
 
 async function installEditor(session, title, uid, backup) {
   if (!backup) {
-    console.log('A backup is required first.');
-    return;
+    console.log('No backup yet: pulling one now, then writing the editor save.');
+    backup = await doBackup(session, title, uid);
+    if (!backup) return;
   }
   if (fs.existsSync(path.join(backup, 'ns2jb.asb'))) {
     console.log('note: payload files are already installed. The editor install rewrites slot 4,');
@@ -364,7 +366,8 @@ async function replaceFromDirectory(session, title, uid, backup) {
 async function titleLoop(session, title, uid) {
   let backup = null;
   for (;;) {
-    const task = await choose(titles.label(title), [
+    const task = await choose(titles.label(title) +
+      '\n  (CHOOSE ONE, ONLY ONE SAVE OPERATION IS ALLOWED PER SESSION)', [
       {label: 'List files in this save (read-only)      [save op]', value: 'list'},
       {label: 'Save: back this save up                     [save op]', value: 'backup'},
       {label: 'Replace: write files from a directory        [save op]', value: 'replace'},
