@@ -1,29 +1,54 @@
--- ns2jb body: this is the file the stub loads at boot.
--- Edit it on the console with the Lua editor (Save file -> ns2jb.lua) and
--- restart the game; no PC and no exploit session are involved.
-local engine = ...
+-- ns2jb body, loaded at boot.
+-- Keep lines <=32 chars: the
+-- dialog returns 32 max.
+local passed = ...
+local engine = passed
+if type(passed) == 'table' then
+  if passed.engine then
+    engine = passed.engine
+  end
+end
+local e = engine
 local base = 'save:'
-local ok, value = pcall(function() return engine:var('s.savepath') end)
-if ok and type(value) == 'string' then base = value end
+local v = nil
+pcall(function()
+  v = e:var('s.savepath')
+end)
+if type(v) == 'string' then
+  base = v
+end
 local game = '?'
-pcall(function() game = tostring(engine:var('s.datapath')) end)
-
+pcall(function()
+  game = e:var('s.datapath')
+end)
 local lines = {}
-local function add(text) lines[#lines + 1] = tostring(text) end
-add('ns2jb body: untethered boot')
-add('lua ' .. tostring(_VERSION))
-add('save ' .. base .. '  game ' .. game)
-add('io.open ' .. type(io.open) .. '  loadstring ' .. type(loadstring) .. '  os.time ' .. tostring(os.time()))
-
-local report = io.open(base .. '/ns2jb-report.txt', 'wb')
-if report then
+local body = ''
+local function add(t)
+  t = tostring(t)
+  lines[#lines+1] = t
+  body = body .. t .. '\n'
+end
+add('ns2jb body')
+add('lua ' .. _VERSION)
+add('save ' .. base)
+add('game ' .. tostring(game))
+add('t ' .. tostring(os.time()))
+local p = '/ns2jb-report.txt'
+local f = io.open(base..p,'wb')
+if f then
   pcall(function()
-    report:write(table.concat(lines, '\n') .. '\n')
-    report:flush()
-    report:close()
+    f:write(body)
+    f:flush()
+    f:close()
   end)
 end
-
--- Put the game back where it belongs, then say hello over the live UI.
-pcall(function() engine:tag{'jump', file = 'system/first.iet', label = 'title'} end)
-pcall(function() engine:tag{'dialog', title = 'ns2jb', message = table.concat(lines, '\n')} end)
+pcall(function()
+  e:tag{'jump',
+    file='system/first.iet',
+    label='title'}
+end)
+pcall(function()
+  e:tag{'dialog',
+    title='ns2jb',
+    message=body}
+end)
