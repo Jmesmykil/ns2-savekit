@@ -13,10 +13,22 @@ here=$(dirname "$0")
 body="$here/../payloads/ns2jb.lua"
 stub="$here/../payloads/ns2jb-stub.lua"
 mkdir -p "$out"
+# The suspend launcher is a retargeted copy of a real save. Prefer the native
+# autosave; fall back to the newest numbered slot for titles that never wrote
+# one (Nora has only save0001.dat).
+seed="$base/autosave.dat"
+if [ ! -f "$seed" ]; then
+  seed=$(ls -1 "$base"/save[0-9][0-9][0-9][0-9].dat 2>/dev/null | sort | tail -1)
+fi
+if [ -z "$seed" ] || [ ! -f "$seed" ]; then
+  echo "no save blob to build from in $base (need autosave.dat or saveNNNN.dat)" >&2
+  exit 1
+fi
+echo "launcher base: $seed"
 python3 "$here/artemis-save.py" asb "$stub" ns2jb_boot "$out/ns2jb.asb"
 cp "$body" "$out/ns2jb.lua"
 cp "$body" "$out/sscode004.lua"
-python3 "$here/artemis-save.py" launch "$base/autosave.dat" ns2jb.asb "$out/save9999.dat"
+python3 "$here/artemis-save.py" launch "$seed" ns2jb.asb "$out/save9999.dat"
 python3 - "$out" "$base" <<'PY'
 import json, os, sys
 out, base = sys.argv[1], sys.argv[2]

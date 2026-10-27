@@ -109,7 +109,7 @@ Inside a title:
 ```
 1) Back up this save (needed before any write)
 2) Write files from a manifest
-3) Install the untethered launcher (Artemis)
+3) Install the untethered launcher (Artemis)  <- needs a backup first
 4) Install the Seedsow Lua Editor save
 5) Delete a file
 6) Back to the main menu
@@ -127,6 +127,23 @@ waiting), and power-cycle the console if it fails twice in a row.
 The individual scripts remain usable directly for scripting - see
 `tools/save-pull-root.cjs`, `tools/save-write-stage.cjs` and the rest, whose
 arguments are documented at the top of each file.
+
+
+### What option 3 does
+
+"Install the untethered launcher" builds four files from the backup you just
+took and writes them in one transaction:
+
+| file | what it is |
+| --- | --- |
+| `/ns2jb.asb` | stub ASB; runs the program named by `ssslot004.ref`, else `ns2jb.lua` |
+| `/save9999.dat` | a copy of a real save with its caret retargeted at `save:/ns2jb.asb` |
+| `/ns2jb.lua` | the body (editable on-console, <=32 chars per line) |
+| `/sscode004.lua` | the same body as editor slot 4 |
+
+The launcher blob comes from the backup's `autosave.dat`, or from its newest
+`saveNNNN.dat` when the title never wrote an autosave (Nora only has slot 1).
+
 
 ## Install the Seedsow Lua Editor save
 
