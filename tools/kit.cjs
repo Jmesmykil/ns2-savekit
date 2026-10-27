@@ -377,7 +377,7 @@ async function main() {
       const task = await choose(`Title ${title}`, [
         {label: 'List the save contents (read-only)', value: 'list'},
         {label: backup ? `Back up again (current: ${path.basename(backup)})` : 'Back up the save (needed before any write)', value: 'backup'},
-        {label: 'Delete a file', value: 'delete'},
+        {label: 'Delete a file (optional)', value: 'delete'},
         {label: 'Read/write: install payload files (Artemis)', value: 'launcher'},
         {label: 'Read/write: install the Seedsow Lua Editor save', value: 'editor'},
         {label: 'Read/write: write files from a manifest', value: 'write'},

@@ -147,13 +147,29 @@ would use it:
 ```
 1) List the save contents (read-only)
 2) Back up the save (needed before any write)
-3) Delete a file
+3) Delete a file (optional)
 4) Read/write: install payload files (Artemis)
 5) Read/write: install the Seedsow Lua Editor save
 6) Read/write: write files from a manifest
 7) Verify: compare the save against the files we wrote
 8) Back to the main menu
 ```
+
+Steps 1, 2, 4-7 are the workflow; **3 is optional** and only for one of these:
+
+- **Disable boot execution.** Deleting `/save9999.dat` removes the launcher, so the
+  game boots normally again. This is also the recovery path if a payload leaves
+  the game on a black screen (it happened on Nora, whose exit jump differs).
+- **Recover from a partial save.** Editors and older tools stage `name.new` /
+  `name.bak`; delete them if a write failed halfway and you want the save clean.
+- **Clean up after testing.** Remove a payload or editor file you installed to
+  try something out.
+- **Free space or drop a file the game ignores.**
+
+Note that the console's own **System Settings -> Data Management** can only delete
+an *entire* save for a game. It cannot remove one file inside a save archive, so
+deleting a single launcher without losing the rest is something only this toolkit
+does. Like every other action here, a delete is one save operation: one per boot.
 
 Every action prints the command it runs, shows the file list and asks before
 writing, and `7` pulls the save once and compares it byte-for-byte with the
