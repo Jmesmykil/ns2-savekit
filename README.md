@@ -123,53 +123,43 @@ node run.cjs --rpc 192.168.50.34
 node tools/kit.cjs
 ```
 
-`kit.cjs` finds the newest held session (or takes one as an argument), and from
-the main menu you can list every installed application with its game name,
-title id and write permission in one view:
+`kit.cjs` finds the newest held session (or takes one as an argument) and opens
+straight onto the thing you pick from - the installed titles, with names, ids and
+write permission in one view:
 
 ```
-1 installed applications  (✔ = write-allowed)
-----------------------------------------------
-  ✔ Nora to Oujo to Noraneko Heart 2 (trial)  (010012900d38a000)
-  ✔ Seedsow Lullaby (demo)                     (010042d022aea000)
-  ✔ Wagamama High Spec (trial)                 (01005eb012fe2000)
-    Pokémon Sword + Pokémon Sword Expansion Pass (0100abf008968000)
-    SmileBASIC 4 (demo)                        (0100b4b00f9f6000)
-  ✔ Seedsow Lullaby (full)                     (0100ee5021c9e000)
-    Nintendo Switch Sports Resort              (04008e001f098000)
-    Mario Kart™ World                          (0400c3f00006e000)
+9 installed applications  (✔ = write-allowed)
+---------------------------------------------
+  1) ✔ Nora to Oujo to Noraneko Heart 2 (trial)  (010012900d38a000)
+  2) ✔ Seedsow Lullaby (demo)                     (010042d022aea000)
+  3) ✔ Wagamama High Spec (trial)                 (01005eb012fe2000)
+  4)   Pokémon Sword + Pokémon Sword Expansion Pass (0100abf008968000)
+  5)   SmileBASIC 4 (demo)                        (0100b4b00f9f6000)
+  6)   SmileBASIC 4                               (0100c9100b06a000)
+  7) ✔ Seedsow Lullaby (full)                     (0100ee5021c9e000)
+  8)   Nintendo Switch Sports Resort              (04008e001f098000)
+  9)   Mario Kart™ World                          (0400c3f00006e000)
+
+Number 1-9 (blank = quit):
 ```
 
-Picking "work on one title" shows the same list, asks for the account uid (or
-uses the remembered one), and then offers the whole workflow in the order you
-would use it:
+Pick a number and that save's options open; asking for the account uid only if it
+is not already remembered:
 
 ```
-1) List the save contents (read-only)
-2) Back up the save (needed before any write)
-3) Delete a file (optional)
-4) Read/write: install payload files (Artemis)
-5) Read/write: install the Seedsow Lua Editor save
-6) Read/write: write files from a manifest
-7) Verify: compare the save against the files we wrote
-8) Back to the main menu
+1) List files in this save (read-only)
+2) Save: back this save up
+3) Replace: write files from a directory into this save
+4) Install payload files (Artemis launcher)
+5) Install the Seedsow Lua Editor save
+6) Delete a file (optional)
+7) Verify: compare the save with what we wrote
+8) Back to the title list
 ```
 
-Steps 1, 2, 4-7 are the workflow; **3 is optional** and only for one of these:
-
-- **Disable boot execution.** Deleting `/save9999.dat` removes the launcher, so the
-  game boots normally again. This is also the recovery path if a payload leaves
-  the game on a black screen (it happened on Nora, whose exit jump differs).
-- **Recover from a partial save.** Editors and older tools stage `name.new` /
-  `name.bak`; delete them if a write failed halfway and you want the save clean.
-- **Clean up after testing.** Remove a payload or editor file you installed to
-  try something out.
-- **Free space or drop a file the game ignores.**
-
-Note that the console's own **System Settings -> Data Management** can only delete
-an *entire* save for a game. It cannot remove one file inside a save archive, so
-deleting a single launcher without losing the rest is something only this toolkit
-does. Like every other action here, a delete is one save operation: one per boot.
+Step 3 is the generic one: point it at any directory of files - a save backup from
+another console, the editor's release, a mod - and it builds the manifest, marks
+what already exists as a verified replace, and writes it in one commit.
 
 Every action prints the command it runs, shows the file list and asks before
 writing, and `7` pulls the save once and compares it byte-for-byte with the
@@ -182,73 +172,6 @@ second operation.
 
 Session folders are looked for in `$NS2_RUNS`, `./runs`, a sibling
 `ns2jb-rpc/runs` or `ns2jb/runs`, and `~/ns2jb-rpc/runs` / `~/ns2jb/runs`.
-
-```
-What do you want to do?
-  1) List installed titles
-  2) List files in a title save (read-only)
-  3) Work on one title (backup, write, delete)
-  4) Quit
-
-Which title?  (✔ = write-allowed)
-  1) ✔ Nora to Oujo to Noraneko Heart 2 (trial)  (010012900d38a000)
-  2) ✔ Seedsow Lullaby (demo)                    (010042d022aea000)
-  4)   Pokémon Sword + Pokémon Sword Expansion Pass (0100abf008968000)
-  7) ✔ Seedsow Lullaby (full)                    (0100ee5021c9e000)
-  9)   Mario Kart™ World                          (0400c3f00006e000)
-```
-
-Game names come from the community [titledb](https://github.com/blawar/titledb)
-(`US.en.json`, fetched once and cached locally, reused offline). Ids titledb cannot
-name - demos and trials (their catalog entry has a null `id`) and some Switch 2
-titles - are covered by the `names` map in `config/titles.json`, so every entry
-shows a game name as well as its id. The ✔ marks
-the ids in `config/titles.json` that may be written to; everything else is
-read-only.
-
-The newest held session is selected automatically. Pass one if you need a
-specific run folder: `node tools/kit.cjs runs/switch2-XXXXXX`.
-
-Inside a title:
-
-```
-1) Back up this save (needed before any write)
-2) Write files from a manifest
-3) Install the untethered launcher (Artemis)  <- needs a backup first
-4) Install the Seedsow Lua Editor save
-5) Delete a file
-6) Back to the main menu
-```
-
-It is a front end, not a reimplementation: every action shells out to the tested
-scripts in `tools/`, so the whitelist, the required backup, the verified replaces
-and the single-commit write behave exactly as they were tested on hardware.
-
-Requirements: `node` 20+, and `python3` for the manifest builders. If a run dies
-at `2/4` with `console response timed out`, that is the exploit's timing lottery,
-not the toolkit: close and reopen SmileBASIC and try again (the host keeps
-waiting), and power-cycle the console if it fails twice in a row.
-
-The individual scripts remain usable directly for scripting - see
-`tools/save-pull-root.cjs`, `tools/save-write-stage.cjs` and the rest, whose
-arguments are documented at the top of each file.
-
-
-### What option 3 does
-
-"Install the untethered launcher" builds four files from the backup you just
-took and writes them in one transaction:
-
-| file | what it is |
-| --- | --- |
-| `/ns2jb.asb` | stub ASB; runs the program named by `ssslot004.ref`, else `ns2jb.lua` |
-| `/save9999.dat` | a copy of a real save with its caret retargeted at `save:/ns2jb.asb` |
-| `/ns2jb.lua` | the body (editable on-console, <=32 chars per line) |
-| `/sscode004.lua` | the same body as editor slot 4 |
-
-The launcher blob comes from the backup's `autosave.dat`, or from its newest
-`saveNNNN.dat` when the title never wrote an autosave (Nora only has slot 1).
-
 
 ### The two installs are different things
 

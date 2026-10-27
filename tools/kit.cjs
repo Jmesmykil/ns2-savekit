@@ -340,88 +340,96 @@ async function verifyAgainst(session, title, uid, backup) {
   console.log(`\nverify: ${ok} matching, ${bad} differing or missing`);
 }
 
+async function replaceFromDirectory(session, title, uid, backup) {
+  if (!backup) {
+    console.log('Back this save up first (option 2): the write checks live bytes against it.');
+    return;
+  }
+  const source = await askDefault('Directory holding the files to install (e.g. a save backup or /tmp/seed)');
+  if (!source || !fs.existsSync(source)) {
+    console.log('no such directory: ' + source);
+    return;
+  }
+  const manifest = path.join(REPO, 'staging', path.basename(source) + '-manifest.json');
+  fs.mkdirSync(path.dirname(manifest), {recursive: true});
+  echoCommand('python3 tools/build-editor-manifest.py ' + quote(source) + ' ' + quote(backup) +
+    ' ' + quote(manifest));
+  const built = spawnSync('python3',
+    [path.join(TOOLS, 'build-editor-manifest.py'), source, backup, manifest], {encoding: 'utf8'});
+  console.log((built.stdout || '') + (built.stderr || ''));
+  if (built.status !== 0) return;
+  await writeFiles(session, title, uid, backup, manifest);
+}
+
+async function titleLoop(session, title, uid) {
+  let backup = null;
+  for (;;) {
+    const task = await choose('Title ' + title, [
+      {label: 'List files in this save (read-only)', value: 'list'},
+      {label: 'Save: back this save up', value: 'backup'},
+      {label: 'Replace: write files from a directory into this save', value: 'replace'},
+      {label: 'Install payload files (Artemis launcher)', value: 'launcher'},
+      {label: 'Install the Seedsow Lua Editor save', value: 'editor'},
+      {label: 'Delete a file (optional)', value: 'delete'},
+      {label: 'Verify: compare the save with what we wrote', value: 'verify'},
+      {label: 'Back to the title list', value: 'back'},
+    ]);
+    if (closed || !task || task.value === 'back') return;
+    if (task.value === 'list') {
+      const listArgs = [session, title, '.', uid, '--list-only'];
+      echoCommand('node tools/save-pull-root.cjs ' + listArgs.map(quote).join(' '));
+      const listed = run('save-pull-root.cjs', listArgs, {stdio: 'inherit'});
+      if (!listed.ok) {
+        console.log('\nlisting failed - if this is not the first save operation in this boot,');
+        console.log('restart the console (a second one crashes the host with 2162-0002).');
+      } else {
+        saveOpDone();
+      }
+    } else if (task.value === 'backup') {
+      const dir = await doBackup(session, title, uid);
+      if (dir) backup = dir;
+    } else if (task.value === 'replace') {
+      await replaceFromDirectory(session, title, uid, backup);
+    } else if (task.value === 'launcher') {
+      await installLauncher(session, title, uid, backup);
+    } else if (task.value === 'editor') {
+      await installEditor(session, title, uid, backup);
+    } else if (task.value === 'delete') {
+      await doDelete(session, title, uid);
+    } else if (task.value === 'verify') {
+      await verifyAgainst(session, title, uid, backup);
+    }
+  }
+}
+
 async function main() {
   console.log('ns2-savekit - guided save data access for Switch 2');
   console.log(NOTICE + '\n');
   const explicit = process.argv[2];
   let session = explicit ? path.resolve(explicit) : await pickSession();
   if (!session) return;
-  console.log('session: ' + session);
+  console.log('session: ' + session + '\n');
 
   for (;;) {
-    const action = await choose('What do you want to do?', [
-      {label: 'List installed titles', value: 'titles'},
-      {label: 'List files in a title save (read-only)', value: 'list'},
-      {label: 'Work on one title (backup, write, delete)', value: 'work'},
-      {label: 'Quit', value: 'quit'},
-    ]);
-    if (closed || !action || action.value === 'quit') break;
-    if (action.value === 'titles') {
-      const rows = await titleRows(session);
-      heading(rows.length + ' installed applications  (✔ = write-allowed)');
-      for (const row of rows) console.log('  ' + row.label);
+    const rows = await titleRows(session);
+    if (rows.length === 0) {
+      console.log('no titles listed - is the session still live?');
+      console.log('check with: node rpc.cjs ' + session + ' status');
+      break;
+    }
+    heading(rows.length + ' installed applications  (✔ = write-allowed)');
+    rows.forEach((row, index) => console.log('  ' + (index + 1) + ') ' + row.label));
+    const picked = await ask('\nNumber 1-' + rows.length + ' (blank = quit): ');
+    if (closed || picked === '') break;
+    const index = Number(picked) - 1;
+    if (!Number.isInteger(index) || !rows[index]) {
+      console.log('  not a listed number');
       continue;
     }
-    if (action.value === 'list') {
-      const title = await pickTitle(session);
-      if (!title) continue;
-      const uid = await pickUid(session, title);
-      if (!uid) continue;
-      const listArgs = [session, title, '.', uid, '--list-only'];
-      echoCommand('node tools/save-pull-root.cjs ' + listArgs.map(quote).join(' '));
-      const listed = run('save-pull-root.cjs', listArgs, {stdio: 'inherit'});
-      if (!listed.ok) {
-        console.log('\nlisting failed. If this is not the first save operation in this boot,');
-        console.log('restart the console: a second operation crashes the host (2162-0002) or');
-        console.log('times out. A save can also be absent (0x7d402) if the game never ran.');
-      } else {
-        saveOpDone();
-      }
-      continue;
-    }
-    const title = await pickTitle(session);
-    if (!title) continue;
+    const title = rows[index].id;
     const uid = await pickUid(session, title);
     if (!uid) continue;
-
-    let backup = null;
-    for (;;) {
-      const task = await choose(`Title ${title}`, [
-        {label: 'List the save contents (read-only)', value: 'list'},
-        {label: backup ? `Back up again (current: ${path.basename(backup)})` : 'Back up the save (needed before any write)', value: 'backup'},
-        {label: 'Delete a file (optional)', value: 'delete'},
-        {label: 'Read/write: install payload files (Artemis)', value: 'launcher'},
-        {label: 'Read/write: install the Seedsow Lua Editor save', value: 'editor'},
-        {label: 'Read/write: write files from a manifest', value: 'write'},
-        {label: 'Verify: compare the save against the files we wrote', value: 'verify'},
-        {label: 'Back to the main menu', value: 'back'},
-      ]);
-      if (!task || task.value === 'back') break;
-      if (task.value === 'list') {
-        const listArgs = [session, title, '.', uid, '--list-only'];
-        echoCommand('node tools/save-pull-root.cjs ' + listArgs.map(quote).join(' '));
-        const listed = run('save-pull-root.cjs', listArgs, {stdio: 'inherit'});
-        if (!listed.ok) {
-          console.log('\nlisting failed - if this is not the first save operation in this boot,');
-          console.log('restart the console (a second one crashes the host with 2162-0002).');
-        } else {
-          saveOpDone();
-        }
-      } else if (task.value === 'verify') {
-        await verifyAgainst(session, title, uid, backup);
-      } else if (task.value === 'backup') {
-        const dir = await doBackup(session, title, uid);
-        if (dir) backup = dir;
-      } else if (task.value === 'write') {
-        await writeManifest(session, title, uid, backup);
-      } else if (task.value === 'launcher') {
-        await installLauncher(session, title, uid, backup);
-      } else if (task.value === 'editor') {
-        await installEditor(session, title, uid, backup);
-      } else if (task.value === 'delete') {
-        await doDelete(session, title, uid);
-      }
-    }
+    await titleLoop(session, title, uid);
   }
   rl.close();
   console.log('\ndone. Keep SmileBASIC open while a session is held.');
