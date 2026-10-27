@@ -159,6 +159,11 @@ Every action prints the command it runs, shows the file list and asks before
 writing, and `7` pulls the save once and compares it byte-for-byte with the
 staging directory to prove the write landed.
 
+**Verify is itself a save operation**, so it cannot follow a write in the same
+boot: the order is back up -> write -> restart the console -> verify as the first
+operation of the next boot. The menu says so, and refuses to quietly attempt a
+second operation.
+
 Session folders are looked for in `$NS2_RUNS`, `./runs`, a sibling
 `ns2jb-rpc/runs` or `ns2jb/runs`, and `~/ns2jb-rpc/runs` / `~/ns2jb/runs`.
 

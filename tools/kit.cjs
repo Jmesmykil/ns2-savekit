@@ -243,6 +243,10 @@ async function writeFiles(session, title, uid, backup, manifest) {
   const result = run('save-write-stage.cjs', writeArgs, {stdio: 'inherit'});
   console.log(result.ok ? '\ncommitted' : '\nwrite failed - see the message above');
   saveOpDone();
+  if (result.ok) {
+    console.log('\nNext: restart the console, then choose this title and 7 (verify) as the');
+    console.log('FIRST save operation of that boot - verify is itself a save operation.');
+  }
 }
 
 async function writeManifest(session, title, uid, backup) {
@@ -290,6 +294,12 @@ async function installEditor(session, title, uid, backup) {
 }
 
 async function verifyAgainst(session, title, uid, backup) {
+  if (opsThisSession > 0) {
+    console.log('\nVerify is a save operation (it re-opens the save read-only to compare).');
+    console.log('This boot has already performed ' + opsThisSession + '.');
+    console.log('Restart the console and run verify as the FIRST operation of the next boot.');
+    if (!(await confirm('Try anyway?'))) return;
+  }
   const staged = await askDefault('Directory holding the files just written',
     path.join(REPO, 'staging', path.basename(backup || title)));
   if (!fs.existsSync(staged)) {
