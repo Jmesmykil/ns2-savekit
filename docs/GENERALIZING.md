@@ -51,8 +51,7 @@ payloads/     per-engine code runners (Artemis Lua here)
 docs/         results, limits, per-case notes
 ```
 
-The Artemis work then becomes the first *case study*: a save-format adapter plus
-an in-game code runner, rather than the whole project. The name
-`artemis-untethered` describes that case study, not the toolkit; if the general
-capability is the point, a neutral name (`ns2-savekit`, `savehold`, `Savour`) with
-GitHub's rename-and-redirect is the cleaner home.
+The Artemis work is therefore the first *case study*: a save-format adapter plus
+an in-game code runner, rather than the whole project. That is why this repository
+is `ns2-savekit` -- the platform and the capability -- and why the Artemis
+material lives in one place rather than in the name.

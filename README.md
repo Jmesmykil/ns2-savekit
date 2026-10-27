@@ -1,7 +1,7 @@
-# artemis-untethered
+# ns2-savekit
 
-Save-data tooling for **Artemis-engine** games on Switch 2, driven entirely over a
-live [ns2jb](https://gitlab.com/kurumuz/ns2jb) RPC connection — plus the
+Save-data tooling for Switch 2, driven entirely over a live
+[ns2jb](https://gitlab.com/kurumuz/ns2jb) RPC connection — plus the
 save-launch payload system that turns a save file into Lua execution inside the
 game process.
 
