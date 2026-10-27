@@ -136,16 +136,18 @@ What do you want to do?
   4) Quit
 
 Which title?  (✔ = write-allowed)
-  1) ✔ 010012900d38a000
-  2) ✔ 010042d022aea000
-  4)   Pokémon Sword + Pokémon Sword Expansion Pass  (0100abf008968000)
-  7) ✔ Seedsow Lullaby  (0100ee5021c9e000)
-  9)   Mario Kart™ World  (0400c3f00006e000)
+  1) ✔ Nora to Oujo to Noraneko Heart 2 (trial)  (010012900d38a000)
+  2) ✔ Seedsow Lullaby (demo)                    (010042d022aea000)
+  4)   Pokémon Sword + Pokémon Sword Expansion Pass (0100abf008968000)
+  7) ✔ Seedsow Lullaby (full)                    (0100ee5021c9e000)
+  9)   Mario Kart™ World                          (0400c3f00006e000)
 ```
 
 Game names come from the community [titledb](https://github.com/blawar/titledb)
-(`US.en.json`, fetched once and cached locally, reused offline); ids titledb does
-not carry - demos, some Switch 2 titles - fall back to the bare id. The ✔ marks
+(`US.en.json`, fetched once and cached locally, reused offline). Ids titledb cannot
+name - demos and trials (their catalog entry has a null `id`) and some Switch 2
+titles - are covered by the `names` map in `config/titles.json`, so every entry
+shows a game name as well as its id. The ✔ marks
 the ids in `config/titles.json` that may be written to; everything else is
 read-only.
 

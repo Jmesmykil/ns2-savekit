@@ -1,9 +1,25 @@
 {
-  "comment": "Program IDs this toolkit may write to. Anything not listed is refused before a handle is opened. Add your own disposable titles; do not add system titles.",
+  "comment": "Program IDs this toolkit may WRITE to (anything unlisted is refused before a handle opens), plus display names for ids that titledb does not carry - demos, trials and some Switch 2 titles have a null id in the catalog.",
   "write": [
-    {"id": "010012900d38a000", "name": "Nora to Oujo to Noraneko Heart 2 (trial)"},
-    {"id": "010042d022aea000", "name": "Seedsow Lullaby (demo)"},
-    {"id": "01005eb012fe2000", "name": "Wagamama High Spec (trial)"},
-    {"id": "0100ee5021c9e000", "name": "Seedsow Lullaby (full)"}
-  ]
+    {
+      "id": "010012900d38a000",
+      "name": "Nora to Oujo to Noraneko Heart 2 (trial)"
+    },
+    {
+      "id": "010042d022aea000",
+      "name": "Seedsow Lullaby (demo)"
+    },
+    {
+      "id": "01005eb012fe2000",
+      "name": "Wagamama High Spec (trial)"
+    },
+    {
+      "id": "0100ee5021c9e000",
+      "name": "Seedsow Lullaby (full)"
+    }
+  ],
+  "names": {
+    "0100b4b00f9f6000": "SmileBASIC 4 (demo)",
+    "04008e001f098000": "Nintendo Switch Sports Resort"
+  }
 }

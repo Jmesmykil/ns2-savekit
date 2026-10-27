@@ -43,8 +43,28 @@ async function refresh() {
   }
 }
 
+let overrides = null;
+
+function localNames() {
+  if (overrides) return overrides;
+  overrides = {};
+  try {
+    const config = JSON.parse(fs.readFileSync(
+      path.join(__dirname, '..', '..', 'config', 'titles.json'), 'utf8'));
+    for (const entry of config.names ? Object.entries(config.names) : []) {
+      overrides[String(entry[0]).toLowerCase()] = entry[1];
+    }
+    for (const entry of config.write || []) {
+      if (entry.name) overrides[String(entry.id).toLowerCase()] = entry.name;
+    }
+  } catch { /* no local names */ }
+  return overrides;
+}
+
 function name(id) {
-  return load()[String(id).toLowerCase()] || null;
+  const key = String(id).toLowerCase();
+  // Local names win: they cover what titledb cannot (demos, trials, Switch 2).
+  return localNames()[key] || load()[key] || null;
 }
 
 function label(id) {
