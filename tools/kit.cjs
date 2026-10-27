@@ -128,22 +128,27 @@ async function pickSession() {
   return chosen ? chosen.value : null;
 }
 
-async function pickTitle(session) {
+async function titleRows(session) {
   const result = run('list-apps.cjs', [session]);
   if (!result.ok) {
     console.log(result.out.trim());
-    return null;
+    return [];
   }
   const ids = [...result.out.matchAll(/0x([0-9a-f]{16})/g)].map(match => match[1]);
-  if (ids.length === 0) {
+  await titles.refresh();
+  return ids.map(id => ({
+    id,
+    label: (ALLOWED.has(id.toLowerCase()) ? '✔ ' : '  ') + titles.label(id),
+  }));
+}
+
+async function pickTitle(session) {
+  const rows = await titleRows(session);
+  if (rows.length === 0) {
     console.log('No installed applications were listed.');
     return null;
   }
-  await titles.refresh();
-  const chosen = await choose('Which title?  (✔ = write-allowed)', ids.map(id => ({
-    label: (ALLOWED.has(id.toLowerCase()) ? '✔ ' : '  ') + titles.label(id),
-    value: id,
-  })));
+  const chosen = await choose('Which title?  (✔ = write-allowed)', rows);
   return chosen ? chosen.value : null;
 }
 
@@ -252,8 +257,9 @@ async function main() {
     ]);
     if (closed || !action || action.value === 'quit') break;
     if (action.value === 'titles') {
-      const result = run('list-apps.cjs', [session]);
-      console.log('\n' + result.out.trim());
+      const rows = await titleRows(session);
+      heading(rows.length + ' installed applications  (✔ = write-allowed)');
+      for (const row of rows) console.log('  ' + row.label);
       continue;
     }
     if (action.value === 'list') {

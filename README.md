@@ -123,10 +123,26 @@ node run.cjs --rpc 192.168.50.34
 node tools/kit.cjs
 ```
 
-`kit.cjs` finds the newest held session (or takes one as an argument) and walks
-the flow: list installed titles, pick one by number, enumerate its account uid,
-pull a backup, and only then offer writes - each showing the exact file list and
-asking for confirmation.
+`kit.cjs` finds the newest held session (or takes one as an argument), and from
+the main menu you can list every installed application with its game name,
+title id and write permission in one view:
+
+```
+1 installed applications  (✔ = write-allowed)
+----------------------------------------------
+  ✔ Nora to Oujo to Noraneko Heart 2 (trial)  (010012900d38a000)
+  ✔ Seedsow Lullaby (demo)                     (010042d022aea000)
+  ✔ Wagamama High Spec (trial)                 (01005eb012fe2000)
+    Pokémon Sword + Pokémon Sword Expansion Pass (0100abf008968000)
+    SmileBASIC 4 (demo)                        (0100b4b00f9f6000)
+  ✔ Seedsow Lullaby (full)                     (0100ee5021c9e000)
+    Nintendo Switch Sports Resort              (04008e001f098000)
+    Mario Kart™ World                          (0400c3f00006e000)
+```
+
+Picking "work on one title" shows the same list, asks for the account uid (or
+enumerates it), pulls a backup, and only then offers writes - each action showing
+the exact file list and asking for confirmation.
 
 ```
 What do you want to do?
