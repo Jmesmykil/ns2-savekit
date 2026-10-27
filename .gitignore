@@ -7,3 +7,4 @@ __pycache__/
 *.part
 *.log
 config/titledb-cache.json
+config/uids.json

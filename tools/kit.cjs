@@ -152,17 +152,43 @@ async function pickTitle(session) {
   return chosen ? chosen.value : null;
 }
 
+const UID_CACHE = path.join(__dirname, '..', 'config', 'uids.json');
+function uidCache() {
+  try { return JSON.parse(fs.readFileSync(UID_CACHE, 'utf8')); } catch { return {}; }
+}
+function rememberUid(title, uid) {
+  const map = uidCache();
+  map[title.toLowerCase()] = uid;
+  try {
+    fs.mkdirSync(path.dirname(UID_CACHE), {recursive: true});
+    fs.writeFileSync(UID_CACHE, JSON.stringify(map, null, 2) + '\n');
+  } catch { /* cache is a convenience */ }
+}
+
 async function pickUid(session, title) {
+  const cached = uidCache()[title.toLowerCase()];
+  if (cached) {
+    console.log('account uid: ' + cached + '  (remembered; config/uids.json)');
+    return cached;
+  }
   const result = run('find-save-uid.cjs', [session, title]);
   const uids = [...result.out.matchAll(/\b([0-9a-f]{32})\b/g)].map(match => match[1]);
   const unique = [...new Set(uids)];
   if (unique.length === 1) {
     console.log('account uid: ' + unique[0]);
+    rememberUid(title, unique[0]);
     return unique[0];
   }
   if (unique.length === 0) {
-    console.log('Could not enumerate an account uid; pass it manually.');
-    return await askDefault('account uid (32 hex chars)', '');
+    console.log('Could not enumerate an account uid for this title.');
+    console.log('Enter the 32-hex uid once; it is remembered per title afterwards.');
+    const typed = await askDefault('account uid (32 hex chars)');
+    if (!typed) {
+      console.log('no uid given - back to the menu');
+      return null;
+    }
+    rememberUid(title, typed);
+    return typed;
   }
   const chosen = await choose('Which account?', unique.map(uid => ({label: uid, value: uid})));
   return chosen ? chosen.value : null;
