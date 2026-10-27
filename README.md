@@ -1,9 +1,15 @@
 # ns2-savekit
 
-Save-data tooling for Switch 2, driven entirely over a live
-[ns2jb](https://gitlab.com/kurumuz/ns2jb) RPC connection — plus the
-save-launch payload system that turns a save file into Lua execution inside the
-game process.
+Read, back up, install and modify **save data for any installed Switch 2 game**,
+driven over a live [ns2jb](https://gitlab.com/kurumuz/ns2jb) RPC connection.
+Nothing in the save path is game-specific: it opens a title's save archive, moves
+files in or out, commits, and verifies by hash.
+
+The second half of the repository applies that same save access to one engine:
+Artemis. There, a save file's execution pointer can be retargeted so the game
+resumes *our* Lua instead of its own script — code execution from save data
+alone. That part is engine-specific and lives in `payloads/` and
+`tools/artemis-save.py`; everything else works on any title you own.
 
 The exploit itself is **not** in this repository. We link to upstream rather than
 vendor it, so this tree contains no exploit code, no keys, and no game content.
@@ -21,6 +27,24 @@ installed, and the numbers are reproducible from the commands in
 | Run arbitrary Lua inside a shipping Artemis game from save data alone | `ns2jb-report.txt` written by the game's own interpreter |
 | Install a third-party save with no JKSV, no Switch 1, no Nintendo transfer | Seedsow Lua Editor v0.1.2 running from slot 1 |
 | Full unsandboxed Lua 5.1 inside the game | `io`, `os`, `debug`, `package`, `loadstring`, `dofile` all present |
+
+## Any title, not just Artemis
+
+The `tools/` scripts take a program id and an account uid; they do not know or
+care what engine the game uses.
+
+| Job | Tool |
+| --- | --- |
+| Back up any title's save | `save-pull-root.cjs` (read-only, no commit) |
+| Restore, update, mod, or install a save someone else built | `save-write-stage.cjs` (one open, one commit, per-file hash verify) |
+| List what is in a save without pulling it | `save-pull-root.cjs --list-only` |
+| Remove one file | `save-delete-root.cjs` |
+| Find which account owns a save | `find-save-uid.cjs`, or pass the uid yourself |
+| See what exists | `list-apps.cjs` |
+
+Artemis is where we prove the harder half — running code from a save — but a
+save backup/restore/mod workflow needs nothing Artemis-specific, and the same
+code installed the 275-file Seedsow Lua Editor save byte-for-byte.
 
 ## The two mechanisms
 
@@ -63,9 +87,12 @@ Writes are the only dangerous operation, and they are fenced:
 - **Save-root only.** Paths must be `/name`; `..`, nested paths and absolute
   paths are rejected.
 
-The promoted-root save path occasionally crashes the *host* application
-(`2162-0002`, roughly 3 in 5 attempts on our unit). One save operation per boot,
-and restart the console after a crash.
+**One save operation per boot.** The promoted-root save path crashes the *host*
+application (`2162-0002`) often enough to assume it: a pull, a write or a delete,
+then restart the console. Two read-only opens in one boot are enough to trigger
+it, and it is not specific to any action — the same command succeeds as the first
+operation and crashes as the second. `kit.cjs` prints this reminder after every
+operation.
 
 
 ### If a tool reports a missing engine function
