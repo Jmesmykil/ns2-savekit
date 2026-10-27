@@ -54,9 +54,17 @@ function run(script, args, options = {}) {
 }
 
 function findRuns() {
-  const root = path.join(REPO, '..');
+  const home = process.env.HOME || '';
+  const bases = [
+    process.env.NS2_RUNS,                                  // explicit override
+    path.join(process.cwd(), 'runs'),                       // ./runs
+    path.join(REPO, '..', 'ns2jb-rpc', 'runs'),             // sibling checkout
+    path.join(REPO, '..', 'ns2jb', 'runs'),                 // sibling upstream
+    path.join(home, 'ns2jb-rpc', 'runs'),
+    path.join(home, 'ns2jb', 'runs'),
+  ].filter(Boolean);
   const candidates = [];
-  for (const base of [path.join(process.cwd(), 'runs'), path.join(root, 'ns2jb-rpc', 'runs')]) {
+  for (const base of bases) {
     if (!fs.existsSync(base)) continue;
     for (const name of fs.readdirSync(base)) {
       const dir = path.join(base, name);
@@ -281,6 +289,35 @@ async function installEditor(session, title, uid, backup) {
   await writeFiles(session, title, uid, backup, manifest);
 }
 
+async function verifyAgainst(session, title, uid, backup) {
+  const staged = await askDefault('Directory holding the files just written',
+    path.join(REPO, 'staging', path.basename(backup || title)));
+  if (!fs.existsSync(staged)) {
+    console.log('no such directory: ' + staged);
+    return;
+  }
+  const temp = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'verify-'));
+  const pullArgs = [session, title, temp, uid];
+  echoCommand('node tools/save-pull-root.cjs ' + pullArgs.map(quote).join(' '));
+  const pulled = run('save-pull-root.cjs', pullArgs, {stdio: 'inherit'});
+  if (!pulled.ok) {
+    console.log('\npull failed - one save operation per boot; restart and verify as the first one.');
+    return;
+  }
+  saveOpDone();
+  let ok = 0, bad = 0;
+  for (const name of fs.readdirSync(staged)) {
+    const local = path.join(staged, name);
+    if (!fs.statSync(local).isFile()) continue;
+    const remote = path.join(temp, name);
+    if (!fs.existsSync(remote)) { console.log('  missing in save: ' + name); bad++; continue; }
+    const same = fs.readFileSync(local).equals(fs.readFileSync(remote));
+    console.log('  ' + (same ? 'ok      ' : 'DIFFERS ') + name);
+    same ? ok++ : bad++;
+  }
+  console.log(`\nverify: ${ok} matching, ${bad} differing or missing`);
+}
+
 async function main() {
   console.log('ns2-savekit - guided save data access for Switch 2');
   console.log(NOTICE + '\n');
@@ -328,15 +365,29 @@ async function main() {
     let backup = null;
     for (;;) {
       const task = await choose(`Title ${title}`, [
-        {label: backup ? `Back up again (current: ${path.basename(backup)})` : 'Back up this save (needed before any write)', value: 'backup'},
-        {label: 'Write files from a manifest', value: 'write'},
-        {label: 'Install the untethered launcher (Artemis)', value: 'launcher'},
-        {label: 'Install the Seedsow Lua Editor save', value: 'editor'},
+        {label: 'List the save contents (read-only)', value: 'list'},
+        {label: backup ? `Back up again (current: ${path.basename(backup)})` : 'Back up the save (needed before any write)', value: 'backup'},
         {label: 'Delete a file', value: 'delete'},
+        {label: 'Read/write: install payload files (Artemis)', value: 'launcher'},
+        {label: 'Read/write: install the Seedsow Lua Editor save', value: 'editor'},
+        {label: 'Read/write: write files from a manifest', value: 'write'},
+        {label: 'Verify: compare the save against the files we wrote', value: 'verify'},
         {label: 'Back to the main menu', value: 'back'},
       ]);
       if (!task || task.value === 'back') break;
-      if (task.value === 'backup') {
+      if (task.value === 'list') {
+        const listArgs = [session, title, '.', uid, '--list-only'];
+        echoCommand('node tools/save-pull-root.cjs ' + listArgs.map(quote).join(' '));
+        const listed = run('save-pull-root.cjs', listArgs, {stdio: 'inherit'});
+        if (!listed.ok) {
+          console.log('\nlisting failed - if this is not the first save operation in this boot,');
+          console.log('restart the console (a second one crashes the host with 2162-0002).');
+        } else {
+          saveOpDone();
+        }
+      } else if (task.value === 'verify') {
+        await verifyAgainst(session, title, uid, backup);
+      } else if (task.value === 'backup') {
         const dir = await doBackup(session, title, uid);
         if (dir) backup = dir;
       } else if (task.value === 'write') {

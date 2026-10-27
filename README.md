@@ -141,8 +141,26 @@ title id and write permission in one view:
 ```
 
 Picking "work on one title" shows the same list, asks for the account uid (or
-enumerates it), pulls a backup, and only then offers writes - each action showing
-the exact file list and asking for confirmation.
+uses the remembered one), and then offers the whole workflow in the order you
+would use it:
+
+```
+1) List the save contents (read-only)
+2) Back up the save (needed before any write)
+3) Delete a file
+4) Read/write: install payload files (Artemis)
+5) Read/write: install the Seedsow Lua Editor save
+6) Read/write: write files from a manifest
+7) Verify: compare the save against the files we wrote
+8) Back to the main menu
+```
+
+Every action prints the command it runs, shows the file list and asks before
+writing, and `7` pulls the save once and compares it byte-for-byte with the
+staging directory to prove the write landed.
+
+Session folders are looked for in `$NS2_RUNS`, `./runs`, a sibling
+`ns2jb-rpc/runs` or `ns2jb/runs`, and `~/ns2jb-rpc/runs` / `~/ns2jb/runs`.
 
 ```
 What do you want to do?
