@@ -222,7 +222,6 @@ async function main() {
   for (;;) {
     const action = await choose('What do you want to do?', [
       {label: 'List installed titles', value: 'titles'},
-      {label: 'List save archives known to FS', value: 'archives'},
       {label: 'Work on one title (backup, write, delete)', value: 'work'},
       {label: 'Change session', value: 'session'},
       {label: 'Quit', value: 'quit'},
