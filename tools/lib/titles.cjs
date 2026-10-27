@@ -84,7 +84,8 @@ function slug(id) {
   const clean = title.normalize('NFKD')
     .replace(/[\u0300-\u036f]/g, '')          // strip accents: Pokémon -> Pokemon
     .replace(/[^A-Za-z0-9]+/g, '-')
-    .replace(/-?TM$|-?R$/i, '')               // trademark suffix from NFKD
+    .replace(/(^|-)TM(?=-|$)/gi, '$1')       // trademark sign from NFKD
+    .replace(/-R$/i, '')
     .replace(/-+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 64);
