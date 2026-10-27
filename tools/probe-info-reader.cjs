@@ -50,7 +50,7 @@ async function main() {
     throw new Error('The run has no promoted fsp-srv root (expected pid 1)');
   }
   const root = rootProof.rootHandle;
-  const {Session} = require(path.join(engine, 'app/session.cjs'));
+  const {Session, u64} = require(path.join(engine, 'app/session.cjs'));
   const domain = require(path.join(engine, 'app/domain.cjs'));
   await request(current.socketPath, {command: 'root-native-info'});
 
@@ -59,6 +59,10 @@ async function main() {
   await s.initialize();
   try {
     const fsp = await s.openService('fsp-srv');
+    // FS validates against the calling process: without SetCurrentProcess (cmd 1,
+    // sent with the pid option) every save command answers 0x2ee002.
+    const init = await s.ipc('SetCurrentProcess', fsp, 1, u64(0), {pid: true});
+    console.log('SetCurrentProcess -> ' + code(init.canonicalResult ?? init.result));
     // 1-byte space input, and the 0x40-byte SaveDataInfoFilter, tried against a
     // range of command ids because the numbering differs between fs versions.
     // switchbrew: 60 OpenSaveDataInfoReader takes NO input, 61
@@ -76,6 +80,15 @@ async function main() {
         candidates.push({command: 61, label: `space=${space} ${length}B`, payload});
       }
     }
+    // Extra shapes the wiki documents: 68 takes 0x50 bytes (SaveDataFilter),
+    // 84 lists the save-data owners this process may see.
+    const filter50 = Buffer.alloc(0x50);
+    filter50[0] = 0;                                  // SaveDataFilter type
+    filter50[0x48] = 1;                               // space = User
+    candidates.push({command: 68, label: '0x50 filter', payload: filter50});
+    candidates.push({command: 62, label: 'cache storage', payload: Buffer.alloc(4)});
+    candidates.push({command: 84, label: 'accessible owners', payload: Buffer.alloc(0)});
+
     for (const candidate of candidates) {
       const reply = await s.ipc(`open reader ${candidate.command} ${candidate.label}`,
         fsp, candidate.command, candidate.payload).catch(error => ({result: -1, error, moves: []}));
