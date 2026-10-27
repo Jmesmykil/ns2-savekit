@@ -143,6 +143,17 @@ The game's VFS exposes `save:` and resolves `game:`, but not `sd:`. There is no
 file channel to the card, so payload output cannot leave the save without an
 exploit session (or the screen).
 
+## One save operation per boot
+
+The promoted-root save path crashes the host application with `2162-0002` often
+enough that the toolkit assumes one save operation per boot: a pull, a write or a
+delete, then restart the console. Two read-only opens in the same boot are enough
+to trigger it (observed twice, most recently on a second `--list-only`).
+
+`kit.cjs` prints that reminder after every operation it performs. It is not a
+limitation of any single action - the same list runs fine as the first operation
+of a boot - so the listing feature stays; the rule is what keeps it reliable.
+
 ## Failure modes observed (worth knowing before you try)
 
 | Symptom | Cause | What fixed it |

@@ -90,6 +90,19 @@ async function confirm(question) {
   return answer === 'y' || answer === 'yes';
 }
 
+// One save operation per boot is the safe limit: a second one crashes the host
+// app (2162-0002) often enough that the reminder is worth printing every time.
+let opsThisSession = 0;
+function saveOpDone() {
+  opsThisSession += 1;
+  console.log(opsThisSession === 1
+    ? '\nreminder: that was the first save operation in this boot. Restart the console\n' +
+      'before another one - a second operation crashes the host app (2162-0002) often\n' +
+      'enough that it is the default assumption.'
+    : '\nreminder: ' + opsThisSession + ' save operations in this boot. If the next one fails\n' +
+      'or the app crashes with 2162-0002, restart the console.');
+}
+
 function heading(text) {
   console.log('\n' + text + '\n' + '-'.repeat(text.length));
 }
@@ -153,6 +166,7 @@ async function doBackup(session, title, uid) {
     return null;
   }
   console.log('\nbackup: ' + dir);
+  saveOpDone();
   return dir;
 }
 
@@ -169,6 +183,7 @@ async function writeFiles(session, title, uid, backup, manifest) {
   if (!(await confirm('Proceed? This commits one transaction'))) return;
   const result = run('save-write-stage.cjs', [session, title, uid, backup, manifest], {stdio: 'inherit'});
   console.log(result.ok ? '\ncommitted' : '\nwrite failed - see the message above');
+  saveOpDone();
 }
 
 async function writeManifest(session, title, uid, backup) {
@@ -183,6 +198,7 @@ async function doDelete(session, title, uid) {
   if (!(await confirm('Delete ' + target + ' from ' + title))) return;
   const result = run('save-delete-root.cjs', [session, title, uid, target], {stdio: 'inherit'});
   console.log(result.ok ? '\ndeleted' : '\ndelete failed');
+  saveOpDone();
 }
 
 async function installLauncher(session, title, uid, backup) {
