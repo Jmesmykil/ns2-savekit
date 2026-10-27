@@ -67,44 +67,66 @@ The promoted-root save path occasionally crashes the *host* application
 (`2162-0002`, roughly 3 in 5 attempts on our unit). One save operation per boot,
 and restart the console after a crash.
 
-## Guided CLI
-
-`node tools/kit.cjs` walks the whole flow instead of making you remember argument
-order: it finds the newest held session (or takes one as an argument), lists the
-installed titles, enumerates the account uid, pulls a backup, and only then
-offers writes - each with the file list and a confirmation. The menu is:
-
-```
-1) List installed titles
-2) List save archives known to FS
-3) Work on one title (backup, write, delete)
-4) Change session
-5) Quit
-```
-
-It is a front end, not a reimplementation: every action shells out to the scripts
-below, so the whitelist, the required backup, the verified replaces and the
-single-commit write all behave exactly as tested.
-
 ## Quick start
 
+Two things are needed before anything else: an exploit session held open, and
+this checkout. The exploit is not part of this repository - get it from
+[ns2jb](https://gitlab.com/kurumuz/ns2jb) and keep it in its own directory.
+
 ```sh
-# 1. Exploit, held open in RPC mode (upstream, not vendored here)
-node run.cjs --rpc 192.168.50.34      # prints: Run folder: runs/switch2-XXXXXX
+# 1. Start the exploit and leave it running. It prints the run folder.
+node run.cjs --rpc 192.168.50.34
+#    -> Run folder: runs/switch2-XXXXXX
+#    then, in a freshly opened SmileBASIC:
+#      RUN
+#      REMOVE NSR,&H60000000,&H3FFFFFFF
+#      V=START(39380,192,168,50,34,0,0,0,0)
 
-# 2. What is installed, and which saves can we reach?
-node tools/list-apps.cjs runs/switch2-XXXXXX
-node tools/save-list.cjs runs/switch2-XXXXXX
-
-# 3. Pull a save (read-only) as a backup
-node tools/save-pull-root.cjs runs/switch2-XXXXXX 0100ee5021c9e000 saves/SeedsowFull <account-uid-hex>
-
-# 4. Build a launcher and a payload
-./tools/build-stage.sh saves/SeedsowFull staging        # ns2jb.asb + save9999.dat + manifest
-node tools/save-write-stage.cjs runs/switch2-XXXXXX 0100ee5021c9e000 <account-uid-hex> saves/SeedsowFull staging/manifest.json
+# 2. Drive everything else from the guided menu
+node tools/kit.cjs
 ```
 
-Then boot the game: it resumes our script instead of the title screen.
+`kit.cjs` finds the newest held session (or takes one as an argument) and walks
+the flow: list installed titles, pick one by number, enumerate its account uid,
+pull a backup, and only then offer writes - each showing the exact file list and
+asking for confirmation.
+
+```
+Which session?
+  1) newest: switch2-XXXXXX
+  2) switch2-YYYYYY   /path/to/runs/switch2-YYYYYY
+
+What do you want to do?
+  1) List installed titles
+  2) List save archives known to FS
+  3) Work on one title (backup, write, delete)
+  4) Change session
+  5) Quit
+```
+
+Inside a title:
+
+```
+1) Back up this save (needed before any write)
+2) Write files from a manifest
+3) Install the untethered launcher (Artemis)
+4) Install the Seedsow Lua Editor save
+5) Delete a file
+6) Back to the main menu
+```
+
+It is a front end, not a reimplementation: every action shells out to the tested
+scripts in `tools/`, so the whitelist, the required backup, the verified replaces
+and the single-commit write behave exactly as they were tested on hardware.
+
+Requirements: `node` 20+, and `python3` for the manifest builders. If a run dies
+at `2/4` with `console response timed out`, that is the exploit's timing lottery,
+not the toolkit: close and reopen SmileBASIC and try again (the host keeps
+waiting), and power-cycle the console if it fails twice in a row.
+
+The individual scripts remain usable directly for scripting - see
+`tools/save-pull-root.cjs`, `tools/save-write-stage.cjs` and the rest, whose
+arguments are documented at the top of each file.
 
 ## Install the Seedsow Lua Editor save
 
