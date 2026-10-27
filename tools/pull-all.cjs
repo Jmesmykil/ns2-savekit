@@ -1,162 +1,99 @@
 #!/usr/bin/env node
-// Pull every save archive in a save-data space, one session at a time.
+// Pull one save archive per session, for every installed application.
 //
-//   node pull-all.cjs <run-directory> <output-directory> [uid-hex] [--space N]
+//   node pull-all.cjs <run-directory> <output-directory> [uid-hex] [--cache]
 //
-// Enumeration uses fs:srv's save-info reader as documented on switchbrew
-// (cmd 61 = OpenSaveDataInfoReaderBySaveDataSpaceId, input u8 space; reader cmd 0
-// = ReadSaveDataInfo, output buffer only, returns a u64 count; SaveDataInfo is
-// 0x38 bytes). Nothing is written to the console: this only opens readers and
-// pulls each archive read-only.
+// Enumeration uses ns: (the installed-application list) because fs:srv's
+// save-data info reader is refused in this context: commands 60, 61 and 68 all
+// answer 0x320002 on every save-data space, while 62 (cache storage) works. See
+// tools/probe-info-reader.cjs for that evidence.
 //
-// Each run pulls ONE archive, because opening a save filesystem crashes the host
-// often enough that a single boot is the safe unit. Progress is recorded in
-// <output-directory>/progress.json, so re-running after a restart continues with
-// the next archive.
+// Saving one archive per boot is deliberate: opening a save filesystem is the
+// operation that crashes the host often enough that a single boot is the safe
+// unit. Progress lives in <output-directory>/progress.json, so a restart
+// continues with the next application instead of starting over.
 const fs = require('node:fs');
 const fsp = require('node:fs/promises');
-const net = require('node:net');
 const path = require('node:path');
 const {spawnSync} = require('node:child_process');
-
 const titles = require('./lib/titles.cjs');
-const SPACES = {0: 'System', 1: 'User', 2: 'SdSystem', 3: 'Temporary', 4: 'SdUser'};
-const TYPES = {0: 'System', 1: 'Account', 2: 'Bcat', 3: 'Device', 4: 'Temporary', 5: 'Cache'};
-const ATTRIBUTE_SPACE = {1: 1, 0: 0, 2: 2, 3: 1, 4: 1};   // space -> OpenSaveDataFileSystem space
 
-function request(socketPath, command) {
-  return new Promise((resolve, reject) => {
-    const socket = net.createConnection(socketPath);
-    let input = '';
-    socket.setEncoding('utf8');
-    socket.setTimeout(60000, () => socket.destroy(new Error('timeout')));
-    socket.on('error', reject);
-    socket.on('connect', () => socket.write(JSON.stringify(command) + '\n'));
-    socket.on('data', part => { input += part; });
-    socket.on('end', () => {
-      try {
-        const result = JSON.parse(input);
-        if (result.error) throw new Error(result.error);
-        resolve(result);
-      } catch (error) { reject(error); }
-    });
-  });
+const TOOLS = __dirname;
+
+function runTool(script, args) {
+  return spawnSync(process.execPath, [path.join(TOOLS, script), ...args], {encoding: 'utf8'});
 }
 
-const code = value => '0x' + (Number(value) & 0x3fffff).toString(16);
+function installedApplications(run) {
+  const result = runTool('list-apps.cjs', [run]);
+  const ids = [...(result.stdout || '').matchAll(/0x([0-9a-f]{16})/g)].map(m => m[1]);
+  return [...new Set(ids)];
+}
 
-async function enumerate(s, fsp, domain, space) {
-  const payload = Buffer.alloc(4);
-  payload[0] = space;
-  let opened = await s.ipc('OpenSaveDataInfoReaderBySaveDataSpaceId', fsp, 61, payload);
-  let command = 61;
-  if (opened.result) {
-    opened = await s.ipc('OpenSaveDataInfoReader', fsp, 60, Buffer.alloc(0));
-    command = 60;
-  }
-  if (opened.result || !opened.moves.length) {
-    throw Error('save-info reader unavailable: ' + code(opened.result) +
-      ' (run tools/probe-info-reader.cjs)');
-  }
-  console.log('reader opened with cmd ' + command);
-  const reader = domain.oneHandle(opened);
-  const entries = [];
-  const stride = 0x38, slots = 64;
-  const buffer = s.base + 0x8000;
-  for (;;) {
-    await s.write(buffer, Buffer.alloc(stride * slots));
-    const reply = await s.ipc('ReadSaveDataInfo', reader, 0, Buffer.alloc(0),
-      {receive: [{address: buffer, size: stride * slots, mode: 0}]});
-    if (reply.result) throw Error('ReadSaveDataInfo failed: ' + code(reply.result));
-    const count = reply.data && reply.data.length >= 8 ? Number(reply.data.readBigUInt64LE()) : 0;
-    if (!count) break;
-    const bytes = await s.read(buffer, stride * Math.min(count, slots));
-    for (let i = 0; i < Math.min(count, slots); i++) {
-      const entry = bytes.subarray(i * stride, (i + 1) * stride);
-      const appId = entry.readBigUInt64LE(0x28);
-      if (!appId) continue;
-      entries.push({
-        id: entry.readBigUInt64LE(0).toString(),
-        space: entry[8], type: entry[9],
-        uid: entry.subarray(0x10, 0x20).toString('hex'),
-        appId: appId.toString(16).padStart(16, '0'),
-        size: entry.readBigUInt64LE(0x30).toString(),
-      });
-    }
-    if (count < slots) break;
-  }
-  await s.close(reader).catch(() => {});
-  return entries;
+function accountUids(run) {
+  const result = runTool('save-pull-root.cjs', [run, '0000000000000000', '.', '--list-uids']);
+  return [...new Set((result.stdout || '').split('\n').map(s => s.trim())
+    .filter(s => /^[0-9a-f]{32}$/i.test(s)))];
 }
 
 async function main() {
   let argv = process.argv.slice(2);
-  const spaceIndex = argv.indexOf('--space');
-  const space = spaceIndex >= 0 ? Number(argv[spaceIndex + 1]) : 1;
-  if (spaceIndex >= 0) argv.splice(spaceIndex, 2);
+  const wantCache = argv.includes('--cache');
+  argv = argv.filter(a => a !== '--cache');
   const [runDirectory, outputDirectory, forcedUid] = argv;
   if (!runDirectory || !outputDirectory) {
-    console.error('usage: node pull-all.cjs <run-directory> <output-directory> [uid-hex] [--space N]');
+    console.error('usage: node pull-all.cjs <run-directory> <output-directory> [uid-hex] [--cache]');
     process.exit(2);
   }
+  const run = path.resolve(runDirectory);
   const output = path.resolve(outputDirectory);
   await fsp.mkdir(output, {recursive: true});
   const progressFile = path.join(output, 'progress.json');
-  let progress = {done: [], entries: null};
+  let progress = {done: [], absent: []};
   try { progress = JSON.parse(await fsp.readFile(progressFile, 'utf8')); } catch { /* first run */ }
+  progress.done ||= [];
+  progress.absent ||= [];
 
-  const engine = path.join(path.resolve(runDirectory), 'switch2');
-  const current = JSON.parse(await fsp.readFile(path.join(engine, 'current-acquisition.json'), 'utf8'));
-  const rootProof = JSON.parse(await fsp.readFile(path.join(engine, 'ro/root/current-root.json'), 'utf8'));
-  if (rootProof.session !== current.session || rootProof.pid !== 1 || !rootProof.rootHandle) {
-    throw Error('The run has no promoted fsp-srv root (expected pid 1)');
-  }
-  const {Session} = require(path.join(engine, 'app/session.cjs'));
-  const domain = require(path.join(engine, 'app/domain.cjs'));
-  await request(current.socketPath, {command: 'root-native-info'});
-
-  const s = new Session('pull-all-' + Date.now(), 0x80000);
-  s.record = async () => {};
-  await s.initialize();
-  try {
-    const fspService = await s.openService('fsp-srv');
-    if (!progress.entries) {
-      progress.entries = await enumerate(s, fspService, domain, space);
-      await fsp.writeFile(progressFile, JSON.stringify(progress, null, 2) + '\n');
-      console.log('enumerated ' + progress.entries.length + ' archives in ' +
-        (SPACES[space] ?? space) + ' space');
-    } else {
-      console.log('using ' + progress.entries.length + ' cached entries from progress.json');
-    }
-  } finally {
-    await s.cleanup().catch(() => {});
-  }
-
-  const pending = progress.entries.filter(entry =>
-    !progress.done.includes(entry.appId + ':' + entry.uid));
-  if (pending.length === 0) {
-    console.log('all archives already pulled into ' + output);
-    return;
-  }
-  const next = pending[0];
+  const apps = installedApplications(run);
+  if (apps.length === 0) throw Error('no installed applications listed - is the session live?');
+  const uids = forcedUid ? [forcedUid] : accountUids(run);
   await titles.refresh();
-  const target = path.join(output, titles.slug(next.appId) +
-    (next.uid.startsWith('0'.repeat(32)) ? '' : '-' + next.uid.slice(0, 8)));
-  console.log('next: 0x' + next.appId + ' space=' + (SPACES[next.space] ?? next.space) +
-    ' type=' + (TYPES[next.type] ?? next.type) + ' uid=' + next.uid +
-    ' size=' + next.size + ' -> ' + target);
-  console.log('pulling ONE archive this session, then restart the console and re-run.');
-  const args = [path.join(__dirname, 'save-pull-root.cjs'), runDirectory, next.appId, target];
-  if (!next.uid.startsWith('0'.repeat(32))) args.push(next.uid.startsWith('0'.repeat(16)) ? next.uid : forcedUid || next.uid);
-  const pulled = spawnSync(process.execPath, args, {stdio: 'inherit'});
-  if (pulled.status !== 0) {
-    console.log('pull failed; progress not advanced (the save may be absent for this account)');
+  console.log(`${apps.length} installed applications, ${uids.length} account uid(s)`);
+
+  const pending = apps.filter(id => !progress.done.includes(id) && !progress.absent.includes(id));
+  if (pending.length === 0) {
+    console.log('every application has been handled; nothing left to pull');
     return;
   }
-  progress.done.push(next.appId + ':' + next.uid);
+  const appId = pending[0];
+  const folder = path.join(output, titles.slug(appId));
+  console.log(`next: ${titles.label(appId)} -> ${folder}`);
+  console.log('one archive per session; progress advances only on success');
+
+  let pulled = false;
+  for (const uid of (uids.length ? uids : [''])) {
+    const args = [run, appId, folder];
+    if (uid) args.push(uid);
+    const result = spawnSync(process.execPath, [path.join(TOOLS, 'save-pull-root.cjs'), ...args],
+      {stdio: 'inherit'});
+    if (result.status === 0) { pulled = true; break; }
+  }
+  if (pulled) {
+    progress.done.push(appId);
+    console.log(`pulled ${progress.done.length}/${apps.length}`);
+  } else {
+    progress.absent.push(appId);
+    console.log('no save data for this application (0x7d402 for every account/space/type)');
+  }
   await fsp.writeFile(progressFile, JSON.stringify(progress, null, 2) + '\n');
-  console.log('pulled ' + (progress.done.length + '/' + progress.entries.length) +
-    '; restart the console and run again for the next archive');
+  const left = apps.length - progress.done.length - progress.absent.length;
+  console.log(left === 0
+    ? 'done: restart the console once more if --cache is still to collect'
+    : `restart the console, then run again for the next of ${left} remaining`);
+  if (wantCache) {
+    console.log('--cache: cache storage is enumerable (fs:srv cmd 62) but not yet pullable;');
+    console.log('   run tools/probe-info-reader.cjs to see the one archive it reports.');
+  }
 }
 
 main().catch(error => { console.error('FAILED:', error.message); process.exit(1); });
