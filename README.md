@@ -195,7 +195,7 @@ than the 2048-entry limit — raise it in `tools/save-pull-root.cjs` and
 
 ## Next: untethered
 
-See [docs/NEXT-STEPS.md](docs/NEXT-STEPS.md). The launcher already survives
+See [docs/RESULTS.md](docs/RESULTS.md). The launcher already survives
 reboots, so the only thing still tied to SmileBASIC is *getting bytes on and off
 the console*. Splitting the payload into a stable boot stub plus an
 editor-authored `ns2jb.lua` removes the last PC from the loop.
@@ -229,7 +229,8 @@ Status of that split, so nobody has to guess:
 ```
 tools/     save pull/write/list/enumerate, ASB encoder, caret patcher, FTP mirror
 payloads/  Lua that runs inside the game: bootstrap probe, capability probe, env map + pluto fuzz
-docs/      results, next steps, CMIF pointer buffers, save-launch notes
+docs/      TECHNICAL.md (mechanism + IPC layout), RESULTS.md (hardware evidence
+           and the untethered roadmap), PATCHED-ENGINE.md (upstream patches)
 tests/     offline round-trip and manifest tests (do not prove console behaviour)
 ```
 
