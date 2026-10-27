@@ -271,6 +271,13 @@ async function installLauncher(session, title, uid, backup) {
     console.log('A backup is required first (it is the base the launcher is built from).');
     return;
   }
+  const editor = fs.existsSync(path.join(backup, 'ssedit1.lua')) ||
+                 fs.existsSync(path.join(backup, 'sed01.asb'));
+  if (!editor) {
+    console.log('note: the Seedsow Lua Editor is not in this save. The launcher still works');
+    console.log('(the stub falls back to ns2jb.lua), but for on-console authoring install the');
+    console.log('editor FIRST (option 5), then this - its install rewrites slot 4.');
+  }
   const out = path.join(REPO, 'staging', path.basename(backup));
   echoCommand('tools/build-untethered.sh ' + quote(backup) + ' ' + quote(out));
   const built = spawnSync('/bin/sh', [path.join(TOOLS, 'build-untethered.sh'), backup, out], {encoding: 'utf8'});
@@ -283,6 +290,11 @@ async function installEditor(session, title, uid, backup) {
   if (!backup) {
     console.log('A backup is required first.');
     return;
+  }
+  if (fs.existsSync(path.join(backup, 'ns2jb.asb'))) {
+    console.log('note: payload files are already installed. The editor install rewrites slot 4,');
+    console.log('so the stub would then run the editor example - re-run the payload install');
+    console.log('(option 4) after this to claim slot 4 again.');
   }
   const source = await askDefault('Directory with the editor save (fetch it first)', '/tmp/seed');
   const manifest = path.join(REPO, 'staging', 'editor-manifest.json');
