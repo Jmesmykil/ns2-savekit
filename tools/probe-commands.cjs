@@ -64,7 +64,9 @@ async function main() {
         // pid:true on every message, the way domain.send does it: once a process is
         // bound, FS rejects messages that do not carry the pid.
         const reply = await domain.send(s, 'cmd ' + command, fsp,
-          domain.wire.domain(fspDomain.root, command, Buffer.alloc(0)));
+          process.env.CONTROL === '1'
+            ? domain.wire.control(command)
+            : domain.wire.domain(fspDomain.root, command, Buffer.alloc(0)));
         result = Number(reply.canonicalResult ?? reply.result) & 0x3fffff;
         moves = reply.moves.length;
         copies = reply.copies.length;
