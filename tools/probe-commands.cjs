@@ -51,7 +51,10 @@ async function main() {
   await s.initialize();
   const byResult = new Map();
   try {
-    const fsp = await s.openService('fsp-srv');
+    // Domain form, the way every working tool talks to fsp-srv: SetCurrentProcess,
+    // ConvertToDomain, then domain messages. Raw CMIF is refused on this build.
+    const fspDomain = await domain.openDomain(s, 'probe');
+    const fsp = fspDomain.handle;
     // The pid flag matters: without it FS does not bind the process and every
     // later command fails at transport rather than returning a result code.
     if (process.env.NO_INIT !== '1') {
@@ -63,7 +66,8 @@ async function main() {
       try {
         // pid:true on every message, the way domain.send does it: once a process is
         // bound, FS rejects messages that do not carry the pid.
-        const reply = await s.ipc('cmd ' + command, fsp, command, Buffer.alloc(0), {pid: true});
+        const reply = await domain.send(s, 'cmd ' + command, fsp,
+          domain.wire.domain(fspDomain.root, command, Buffer.alloc(0)));
         result = Number(reply.canonicalResult ?? reply.result) & 0x3fffff;
         moves = reply.moves.length;
         copies = reply.copies.length;
