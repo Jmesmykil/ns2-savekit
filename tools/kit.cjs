@@ -188,10 +188,19 @@ function rememberUid(title, uid) {
 }
 
 async function pickUid(session, title) {
-  const cached = uidCache()[title.toLowerCase()];
+  const cache = uidCache();
+  const cached = cache[title.toLowerCase()];
   if (cached) {
     console.log('account uid: ' + cached + '  (remembered; config/uids.json)');
     return cached;
+  }
+  // The same account owns every save on a single-user console, so any remembered
+  // uid is a good default rather than prompting from scratch.
+  const anyKnown = Object.values(cache)[0];
+  if (anyKnown) {
+    console.log('account uid: ' + anyKnown + '  (from another title; config/uids.json)');
+    rememberUid(title, anyKnown);
+    return anyKnown;
   }
   const result = run('find-save-uid.cjs', [session, title]);
   const uids = [...result.out.matchAll(/\b([0-9a-f]{32})\b/g)].map(match => match[1]);
