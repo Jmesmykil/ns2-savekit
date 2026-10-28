@@ -46,36 +46,33 @@ async function main() {
   const domain = require(path.join(engine, 'app/domain.cjs'));
   await request(current.socketPath, {command: 'root-native-info'});
 
+  // The working tools do not openService at all: they reuse the promoted root handle
+  // recorded for this run and send raw CMIF to it. Every earlier attempt here opened
+  // a fresh fsp-srv handle, which is why nothing it sent was accepted.
+  const rootProof = JSON.parse(await fs.readFile(path.join(engine, 'ro/root/current-root.json'), 'utf8'));
+  if (rootProof.session !== current.session || rootProof.pid !== 1 || !rootProof.rootHandle)
+    throw Error('The run has no promoted fsp-srv root (expected pid 1)');
+  const root = rootProof.rootHandle;
   const s = new Session('probe-cmds-' + Date.now(), 0x80000);
   s.record = async () => {};
   await s.initialize();
+  // Warning: an unknown id leaves the session unusable - after a sweep even the
+  // puller answers transport 0xf601 and the console has to be restarted. Start the
+  // range at a known-good id (53 or 62) when calibrating.
+  if (first === 0) console.error('warning: command 0 wedges the session; starting at 0 is not safe');
   const byResult = new Map();
   try {
-    // Domain form, the way every working tool talks to fsp-srv: SetCurrentProcess,
-    // ConvertToDomain, then domain messages. Raw CMIF is refused on this build.
-    const fspDomain = await domain.openDomain(s, 'probe');
-    const fsp = fspDomain.handle;
-    // openDomain already did SetCurrentProcess and ConvertToDomain; sending
-    // SetCurrentProcess again is what produced transport 0xf601 all along.
-    console.log('domain ready, root 0x' + fspDomain.root.toString(16));
     for (let command = first; command <= last; command++) {
       let result, moves = 0, copies = 0;
       try {
-        // pid:true on every message, the way domain.send does it: once a process is
-        // bound, FS rejects messages that do not carry the pid.
-        const reply = await domain.send(s, 'cmd ' + command, fsp,
-          process.env.CONTROL === '1'
-            ? domain.wire.control(command)
-            : domain.wire.domain(fspDomain.root, command, Buffer.alloc(0)));
+        const reply = await s.ipc('cmd ' + command, root, command, Buffer.alloc(0));
         result = Number(reply.canonicalResult ?? reply.result) & 0x3fffff;
         moves = reply.moves.length;
         copies = reply.copies.length;
         for (const handle of [...reply.moves, ...reply.copies]) await s.close(handle).catch(() => {});
       } catch (error) {
-        // A refused command often comes back as a transport error, not a result
-        // code; keep the code so those ids stay distinguishable from silence.
-        const transport = /transport 0x([0-9a-f]+)/i.exec(error.message || '');
-        result = transport ? 'xport ' + transport[1] : (error.message || 'threw').slice(0, 60);
+        const transport = /transport (?:failed )?0x([0-9a-f]+)/i.exec(error.message || '');
+        result = transport ? 'xport ' + transport[1] : (error.message || 'threw').slice(0, 50);
       }
       const key = String(result);
       if (!byResult.has(key)) byResult.set(key, []);
