@@ -68,6 +68,7 @@ function main() {
           files: Number(match[1]),
           bytes: Number(match[2]),
           writable: allowed.has(appId.toLowerCase()),
+          state: Number(match[1]) === 0 ? 'empty' : (Number(match[1]) < 3 ? 'sparse' : 'ok'),
         });
       }
     }
@@ -77,11 +78,12 @@ function main() {
     }
     rows.sort((a, b) => b.bytes - a.bytes);
     const wide = Math.max(...rows.map(r => r.game.length));
-    console.log('  game'.padEnd(wide + 2) + '  user  files      size  id');
-    console.log('  ' + '-'.repeat(wide) + '  ----  -----  --------  ----------------');
+    console.log('  game'.padEnd(wide + 2) + '  user  files      size  state  id');
+    console.log('  ' + '-'.repeat(wide) + '  ----  -----  --------  -----  ----------------');
     for (const row of rows) {
       console.log((row.writable ? '✔ ' : '  ') + row.game.padEnd(wide) + '  ' + String(row.user).padStart(4) + '  ' +
-        String(row.files).padStart(5) + '  ' + (row.bytes / 1048576).toFixed(1).padStart(6) + 'M  ' + row.id);
+        String(row.files).padStart(5) + '  ' + (row.bytes / 1048576).toFixed(1).padStart(6) + 'M  ' +
+        row.state.padEnd(5) + '  ' + row.id);
     }
     const total = rows.reduce((sum, row) => sum + row.bytes, 0);
     console.log(`\n${rows.length} save archives, ${(total / 1048576).toFixed(1)} MiB total`);
