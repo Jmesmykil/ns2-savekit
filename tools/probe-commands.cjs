@@ -54,8 +54,10 @@ async function main() {
     const fsp = await s.openService('fsp-srv');
     // The pid flag matters: without it FS does not bind the process and every
     // later command fails at transport rather than returning a result code.
-    const init = await s.ipc('SetCurrentProcess', fsp, 1, u64(0), {pid: true});
-    console.log('SetCurrentProcess ->', '0x' + (Number(init.canonicalResult ?? init.result) & 0x3fffff).toString(16));
+    if (process.env.NO_INIT !== '1') {
+      const init = await s.ipc('SetCurrentProcess', fsp, 1, u64(0), {pid: true});
+      console.log('SetCurrentProcess ->', '0x' + (Number(init.canonicalResult ?? init.result) & 0x3fffff).toString(16));
+    }
     for (let command = first; command <= last; command++) {
       let result, moves = 0, copies = 0;
       try {
