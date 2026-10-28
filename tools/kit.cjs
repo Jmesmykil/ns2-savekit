@@ -380,7 +380,7 @@ async function verifyAgainst(session, title, uid, backup) {
   echoCommand('node tools/save-pull-root.cjs ' + pullArgs.map(quote).join(' '));
   const pulled = run('save-pull-root.cjs', pullArgs, {stdio: 'inherit'});
   if (!pulled.ok) {
-    console.log('\npull failed - one save operation per boot; restart and verify as the first one.');
+    console.log('\npull failed - retry, and restart the console if it keeps failing.');
     return;
   }
   saveOpDone();
