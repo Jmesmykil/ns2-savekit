@@ -190,34 +190,52 @@ function accountSlots(session) {
     .filter(line => /^[0-9a-f]{32}$/i.test(line)))];
 }
 
+// Which accounts actually have an archive for this title? A read-only listing
+// answers that, so the prompt only offers users that can be downloaded and is
+// skipped entirely when there is exactly one.
 async function pickUid(session, title) {
   const cache = uidCache();
-  const cached = cache[title.toLowerCase()];
-  if (cached) {
-    console.log('account uid: ' + cached + '  (remembered; config/uids.json)');
-    return cached;
-  }
   const slots = accountSlots(session);
-  if (slots.length > 0) {
-    const options = slots.map((uid, index) => ({
-      label: 'user ' + (index + 1) + '   ' + uid.slice(0, 8) + '…' + uid.slice(-4),
-      value: uid,
-    }));
-    options.push({label: 'all users (one folder per user)', value: 'all'});
-    const chosen = await choose('Which user owns this save?', options);
-    const uid = chosen ? chosen.value : slots[0];
-    console.log('using ' + uid);
+  if (slots.length === 0) {
+    console.log('Could not list the console\'s users; enter the uid by hand once.');
+    const typed = await askDefault('account uid (32 hex chars)');
+    if (!typed) return null;
+    rememberUid(title, typed);
+    return typed;
+  }
+
+  const found = [];
+  for (let i = 0; i < slots.length; i++) {
+    const probe = run('save-pull-root.cjs', [session, title, '.', slots[i], '--list-only']);
+    saveOpDone();
+    if (probe.ok && /listed \d+ files/.test(probe.out)) found.push({index: i + 1, uid: slots[i]});
+  }
+
+  if (found.length === 0) {
+    console.log('\nno save data for this title on any account (0x7d402) - nothing to pull.');
+    return null;
+  }
+  if (found.length === 1) {
+    const uid = found[0].uid;
+    console.log('\nsave found for user ' + found[0].index + ' (' + uid.slice(0, 8) + '…' + uid.slice(-4) + ')');
     rememberUid(title, uid);
     return uid;
   }
-  console.log('Could not list the console\'s users; enter the uid by hand once.');
-  const typed = await askDefault('account uid (32 hex chars)');
-  if (!typed) {
-    console.log('no uid given - back to the menu');
-    return null;
+  const options = found.map(entry => ({
+    label: 'user ' + entry.index + '   ' + entry.uid.slice(0, 8) + '…' + entry.uid.slice(-4),
+    value: entry.uid,
+  }));
+  options.push({label: 'all of the above (one folder per user)', value: 'all'});
+  const cached = cache[title.toLowerCase()];
+  if (cached && found.some(entry => entry.uid === cached)) {
+    console.log('\nsaves found for ' + found.length + ' users; last used: ' + cached);
+  } else {
+    console.log('\nsaves found for ' + found.length + ' users');
   }
-  rememberUid(title, typed);
-  return typed;
+  const chosen = await choose('Which save do you want?', options);
+  const uid = chosen ? chosen.value : found[0].uid;
+  if (uid !== 'all') rememberUid(title, uid);
+  return uid;
 }
 
 async function doBackup(session, title, uid) {
