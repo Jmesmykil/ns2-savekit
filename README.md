@@ -213,6 +213,37 @@ happily run "Hello from a persistent Lua slot!" instead of your payload. Having
 both is the intended end state: the editor authors `sscode004.lua`, the stub runs
 it at boot.
 
+### First run: two things you set, nothing ships
+
+Nothing about anyone else's console is in this repository:
+
+- **`config/titles.json` is a template.** Its `write` list is empty, so on a fresh
+  clone every title appears *without* a ✔ and every write is refused. Copy the ids
+  you are willing to write to into `config/titles.local.json` (gitignored) and they
+  start showing ✔:
+
+  ```json
+  { "write": [ { "id": "010042d022aea000", "name": "Seedsow Lullaby (demo)" } ] }
+  ```
+
+  Reads, backups and the editor install's *source* need none of this - only writing
+  into a save does.
+
+- **`config/uids.json` starts empty.** A save archive is keyed by title *and*
+  account, so the first title you touch asks which user owns the save:
+
+  ```
+  Which user owns this save?
+    1) user 1   539fd277…3664
+    2) user 2   6cd51710…3664
+    3) user 3   e3f05df2…3664
+    4) all users (one folder per user)
+  ```
+
+  The slots come from the console's account service, not from a list; the answer is
+  remembered per title, so it asks once per title at most. `4` probes each account
+  read-only and pulls only the ones that actually have a save.
+
 ## Worked example: Seedsow Lullaby demo, pull then install
 
 One session, one save operation, uid typed once (nicknames are not decoded yet, so
