@@ -19,7 +19,7 @@ Seedsow Lua Editor -- reference save and format documentation, NOT bundled.
     tools/indexed_save.py, with the index field order corrected and relocation
     applied on write.
 
-Artemis engine -- Valve's engine, used by the target games.
+Artemis engine -- used by the target games.
     No game code, assets, keys or save data are included in this repository.
     No affiliation with or endorsement by the engine's authors or the games'
     publishers is implied.

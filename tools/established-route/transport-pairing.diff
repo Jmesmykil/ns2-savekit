@@ -1,0 +1,93 @@
+--- a/sources/bootstrap.bas
++++ b/sources/bootstrap.bas
+@@ -101,6 +101,7 @@
+  M#=K#-&H9DB49C
+  IF W$(K#,10)!=KEY(2) THEN RETURN FAIL(12)
+  IF U#(W$(FLOOR(K#/4096)*4096+&H170,8))!=M#+&H3854D0 THEN RETURN FAIL(13)
++ IF HASH#(W$(M#,128))!=2137937599 THEN RETURN FAIL(14)
+  Q$=W$(M#+&H9C9298,128):MM#=U#(MID$(Q$,44,4))
+  D#=MM#-&H5872F0:G#=M#+&H9C92F0
+  IF !PTR(D#,4096) || U#(MID$(Q$,40,4))!=D#+&H586FB0 THEN RETURN FAIL(15)
+@@ -178,7 +179,7 @@
+  DUMP P$(B#)+P$(C#)+P$(T#)+P$(SH#)+P$(S#)+P$(M#)+P$(D#)+P$(G#)+P$(MM#)
+  PRINT "BOOT OK",CRC#:RETURN 1
+ END
+-COMMON DEF START(PORT,A,B,C,D)
++COMMON DEF START(PORT,A,B,C,D,T0#,T1#,T2#,T3#)
+  VAR R#,J,A$,HELLO$
+  IF !BOOT() THEN RETURN 0
+  IF PHASE!=2 OR PORT<1024 OR PORT>65535 THEN RETURN FAIL(50)
+@@ -203,7 +204,7 @@
+  COPY NSR[1],&H2900,A$
+  IF CALL#(&H147AF0,FD,S#+&H5200,16,0)!=0 THEN RETURN FAIL(58)
+  HELLO$=P$(&H31545344)+P$(1)+P$(2)+P$(S#)+P$(&H80000)+P$(M#)+P$(D#)+P$(G#)+P$(MM#)+P$(B#)+P$(C#)
+- HELLO$=HELLO$+P$(0)+P$(0)+P$(0)+P$(0)+P$(3925528160)
++ HELLO$=HELLO$+P$(T0#)+P$(T1#)+P$(T2#)+P$(T3#)+P$(3925528160)
+  COPY NSR[1],&H2A00,HELLO$
+  IF CALL#(&H140BD0,FD,S#+&H5400,128,0)!=128 THEN RETURN FAIL(59)
+  PHASE=4:PRINT "HOST CONNECTED":RETURN RPC()
+--- a/sources/connection.cjs
++++ b/sources/connection.cjs
+@@ -1,4 +1,5 @@
+ const net = require('node:net');
++const crypto = require('node:crypto');
+ 
+ const HELLO_BYTES = 128;
+ const MAGIC = 0x31545344;
+@@ -6,7 +7,7 @@
+ // TCP may split a record anywhere. A timeout ends the connection; requests
+ // cannot be replayed because a native operation might already have completed.
+ class Connection {
+-  constructor(socket, timeout = 120000) {
++  constructor(socket, timeout = 30000) {
+     this.socket = socket;
+     this.timeout = timeout;
+     this.buffer = Buffer.alloc(0);
+@@ -66,7 +67,11 @@
+   close() { this.fail(Error('Connection closed')); }
+ }
+ 
+-function parseHello(bytes) {
++function pairingCode() {
++  return Array.from({length: 4}, () => crypto.randomBytes(6).readUIntLE(0, 6));
++}
++
++function parseHello(bytes, token) {
+   if (bytes.length !== HELLO_BYTES) throw Error('Incomplete console greeting');
+   const words = Array.from({length: 16}, (_, index) => bytes.readBigUInt64LE(index * 8));
+   if (words.some(value => value > BigInt(Number.MAX_SAFE_INTEGER)))
+@@ -74,6 +79,10 @@
+   const values = words.map(Number);
+   if (values[0] !== MAGIC || values[1] !== 1 || values[2] !== 2)
+     throw Error('Wrong launcher protocol or console type');
++  const expected = Buffer.alloc(32);
++  token.forEach((value, index) => expected.writeBigUInt64LE(BigInt(value), index * 8));
++  if (!crypto.timingSafeEqual(bytes.subarray(88, 120), expected))
++    throw Error('Pairing code does not match this launch');
+   const names = ['scratch', 'scratchBytes', 'main', 'sdk', 'got', 'memmove', 'backing', 'controller'];
+   const addresses = Object.fromEntries(names.map((name, index) => [name, values[index + 3]]));
+   const {scratch, scratchBytes, main, sdk, got, memmove, backing, controller} = addresses;
+@@ -89,7 +98,7 @@
+   return {...addresses, platform: 2, sdkCrc32: values[15]};
+ }
+ 
+-async function listen({host, port, onWaiting, timeout = 10 * 60 * 1000}) {
++async function listen({host, port, token, onWaiting, timeout = 10 * 60 * 1000}) {
+   if (!net.isIPv4(host)) throw Error('Use the computer\'s LAN IPv4 address');
+   if (!Number.isInteger(port) || port < 1024 || port > 65535) throw Error('Port must be 1024..65535');
+   const pending = new Set();
+@@ -110,7 +119,7 @@
+       pending.add(connection);
+       connection.read(HELLO_BYTES).then(bytes => {
+         if (finished) throw Error('Pairing has ended');
+-        const addresses = parseHello(bytes);
++        const addresses = parseHello(bytes, token);
+         pending.delete(connection);
+         stop();
+         for (const other of pending) other.close();
+@@ -126,4 +135,4 @@
+   });
+ }
+ 
+-module.exports = {Connection, HELLO_BYTES, MAGIC, parseHello, listen};
++module.exports = {Connection, HELLO_BYTES, MAGIC, pairingCode, parseHello, listen};

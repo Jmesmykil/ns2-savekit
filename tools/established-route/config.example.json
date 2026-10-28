@@ -1,0 +1,12 @@
+{
+  "host": "192.0.2.1",
+  "port": 39380,
+  "sshConfig": "/absolute/path/to/private/ssh-config",
+  "sshAlias": "configured-keyboard-host",
+  "sshHostKeyAlias": "configured-keyboard-key",
+  "piHostname": "keyboard.local",
+  "remoteInputRoot": "/absolute/path/on/pi/to/keyboard-input",
+  "usbSerial": "YOUR-EXISTING-GADGET-SERIAL",
+  "hidDevice": "/dev/hidg0",
+  "serialPath": "/sys/kernel/config/usb_gadget/ns2jb_keyboard/strings/0x409/serialnumber"
+}

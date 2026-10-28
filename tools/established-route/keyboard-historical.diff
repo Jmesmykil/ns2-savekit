@@ -1,0 +1,29 @@
+--- a/pi_hid_type.py
++++ b/pi_hid_type.py
+@@ -53,8 +53,6 @@
+ 
+ 
+ def write_report(fd, report, timeout=2.0):
+-    if len(report) != 8:
+-        raise ValueError('Keyboard reports must contain exactly 8 bytes')
+     deadline = time.monotonic() + timeout
+     while True:
+         remaining = deadline - time.monotonic()
+@@ -114,7 +112,7 @@
+     raise KeyboardInterrupt
+ 
+ 
+-def main(argv=None):
++def main():
+     p = argparse.ArgumentParser(description=__doc__)
+     source = p.add_mutually_exclusive_group(required=True)
+     source.add_argument('--text')
+@@ -130,7 +128,7 @@
+     p.add_argument('--enter-delay-ms', type=float, default=150)
+     p.add_argument('--press-ms', type=float, default=50)
+     p.add_argument('--backspace-count', type=int, default=0)
+-    a = p.parse_args(argv)
++    a = p.parse_args()
+     try:
+         if not all(math.isfinite(x) and 0 < x <= 10000
+                    for x in (a.delay_ms, a.enter_delay_ms, a.press_ms)):
