@@ -420,7 +420,7 @@ async function titleLoop(session, title, uid) {
   let backup = null;
   for (;;) {
     const task = await choose(titles.label(title) +
-      '\n  (CHOOSE ONE, ONLY ONE SAVE OPERATION IS ALLOWED PER SESSION)', [
+      '\n  (each entry opens the save once; several in a row usually work - restart if one fails)', [
       {label: 'List files in this save (read-only)      [save op]', value: 'list'},
       {label: 'Save: back this save up                     [save op]', value: 'backup'},
       {label: 'Replace: write files from a directory        [save op]', value: 'replace'},

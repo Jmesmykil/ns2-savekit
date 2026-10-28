@@ -152,7 +152,7 @@ is not already remembered:
 
 ```
 Seedsow Lullaby (demo)  (010042d022aea000)
-  (CHOOSE ONE, ONLY ONE SAVE OPERATION IS ALLOWED PER SESSION)
+  (each entry opens the save once; several in a row usually work - restart if one fails)
   1) List files in this save (read-only)      [save op]
   2) Save: back this save up                   [save op]
   3) Replace: write files from a directory     [save op]
