@@ -153,6 +153,11 @@ async function titleRows(session) {
   }
   const ids = [...result.out.matchAll(/0x([0-9a-f]{16})/g)].map(match => match[1]);
   await titles.refresh();
+  if (!titles.available()) {
+    console.log('note: no title names available (titledb could not be fetched and');
+    console.log('config/titles.json has no names for these ids) - showing ids only.');
+    console.log('Connect once with network access, or add names to config/titles.json.');
+  }
   return ids.map(id => ({
     id,
     label: (ALLOWED.has(id.toLowerCase()) ? '✔ ' : '  ') + titles.label(id),

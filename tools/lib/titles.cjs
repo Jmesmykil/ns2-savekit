@@ -6,7 +6,11 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const CACHE = path.join(__dirname, '..', '..', 'config', 'titledb-cache.json');
-const URL = 'https://raw.githubusercontent.com/blawar/titledb/master/US.en.json';
+const URLS = [
+  'https://raw.githubusercontent.com/blawar/titledb/master/US.en.json',
+  // mirror, for networks where raw.githubusercontent is blocked
+  'https://cdn.jsdelivr.net/gh/blawar/titledb@master/US.en.json',
+];
 
 let map = null;
 
@@ -26,9 +30,10 @@ async function refresh(maxAgeMs = 7 * 24 * 3600 * 1000) {
     const stat = fs.statSync(CACHE);
     if (Date.now() - stat.mtimeMs < maxAgeMs) return true;
   } catch { /* no cache: fetch */ }
+  for (const url of URLS) {
   try {
-    const response = await fetch(URL, {signal: AbortSignal.timeout(20000)});
-    if (!response.ok) return false;
+    const response = await fetch(url, {signal: AbortSignal.timeout(20000)});
+    if (!response.ok) continue;
     const data = await response.json();
     const compact = {};
     for (const [key, entry] of Object.entries(data)) {
@@ -39,14 +44,23 @@ async function refresh(maxAgeMs = 7 * 24 * 3600 * 1000) {
         compact[id.toLowerCase()] = name;
       }
     }
-    if (Object.keys(compact).length < 100) return false;
+    if (Object.keys(compact).length < 100) continue;
     fs.mkdirSync(path.dirname(CACHE), {recursive: true});
     fs.writeFileSync(CACHE, JSON.stringify(compact));
     map = compact;
     return true;
   } catch {
-    return false;
+    continue;
   }
+  }
+  return false;
+}
+
+// True when at least one title can be named; the kit warns when it cannot.
+function available() {
+  const known = Object.keys(load()).length;
+  const local = Object.keys(localNames()).length;
+  return known + local > 0;
 }
 
 let overrides = null;
@@ -95,4 +109,4 @@ function slug(id) {
   return clean || String(id).toLowerCase();
 }
 
-module.exports = {refresh, name, label, slug, cachePath: CACHE};
+module.exports = {refresh, name, label, slug, available, cachePath: CACHE};
