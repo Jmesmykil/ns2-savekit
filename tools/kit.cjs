@@ -209,6 +209,7 @@ async function pickUid(session, title) {
       label: 'user ' + (index + 1) + '   ' + uid.slice(0, 8) + '…' + uid.slice(-4),
       value: uid,
     }));
+    options.push({label: 'all users (one folder per user)', value: 'all'});
     const chosen = await choose('Which user owns this save?', options);
     const uid = chosen ? chosen.value : slots[0];
     console.log('using ' + uid);
@@ -226,6 +227,21 @@ async function pickUid(session, title) {
 }
 
 async function doBackup(session, title, uid) {
+  if (uid === 'all') {
+    const slots = accountSlots(session);
+    const base = path.join(REPO, 'saves', titles.slug(title));
+    const made = [];
+    for (let i = 0; i < slots.length; i++) {
+      const dir = base + '-user' + (i + 1);
+      console.log(`\nuser ${i + 1} of ${slots.length}`);
+      echoCommand('node tools/save-pull-root.cjs ' + [session, title, dir, slots[i]].map(quote).join(' '));
+      const result = run('save-pull-root.cjs', [session, title, dir, slots[i]], {stdio: 'inherit'});
+      if (!result.ok) console.log('  no save for this user (or the session dropped)');
+      else made.push(dir);
+      saveOpDone();
+    }
+    return made[0] || null;
+  }
   const suggested = path.join(REPO, 'saves', titles.slug(title));
   const dir = await askDefault('Directory for the backup', suggested);
   if (!dir) return null;
