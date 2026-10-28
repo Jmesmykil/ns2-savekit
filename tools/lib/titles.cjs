@@ -69,8 +69,16 @@ function localNames() {
   if (overrides) return overrides;
   overrides = {};
   try {
-    const config = JSON.parse(fs.readFileSync(
-      path.join(__dirname, '..', '..', 'config', 'titles.json'), 'utf8'));
+    const read = name => {
+      try {
+        return JSON.parse(fs.readFileSync(
+          path.join(__dirname, '..', '..', 'config', name), 'utf8'));
+      } catch { return {}; }
+    };
+    // titles.json ships a template; titles.local.json holds this console's ids.
+    const local = read('titles.local.json');
+    const config = {...read('titles.json'), ...local,
+      names: {...(read('titles.json').names || {}), ...(local.names || {})}};
     for (const entry of config.names ? Object.entries(config.names) : []) {
       overrides[String(entry[0]).toLowerCase()] = entry[1];
     }

@@ -18,8 +18,10 @@ const readline = require('node:readline');
 const titles = require('./lib/titles.cjs');
 const ALLOWED = new Set();
 try {
-  const extra = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'titles.json'), 'utf8'));
-  for (const entry of extra.write || []) ALLOWED.add(String(entry.id).toLowerCase());
+  for (const name of ['titles.json', 'titles.local.json']) {
+    const extra = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', name), 'utf8'));
+    for (const entry of extra.write || []) ALLOWED.add(String(entry.id).toLowerCase());
+  }
 } catch { /* allowlist file is optional */ }
 
 const TOOLS = __dirname;
