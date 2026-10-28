@@ -123,6 +123,38 @@ async function main() {
       if (save !== null) break;
     }
     if (save === null) throw Error('No save filesystem opened for 0x' + programId.toString(16));
+    if (process.argv.includes('--filetime')) {
+      // Probe IFileSystem's timestamp command: same technique that found the
+      // working save-info reader (try the plausible shapes, print each result).
+      const {packet} = require(path.join(run, 'shared/ipc.cjs'));
+      const domain = require(path.join(engine, 'app/domain.cjs'));
+      const out = s.base + 0x6000;
+      const pathAddr = s.base + 0x2000;
+      const buf = Buffer.alloc(0x304);
+      Buffer.from(process.env.FTIMEPATH || '/').copy(buf);
+      await s.write(pathAddr, buf);
+      await s.write(out, Buffer.alloc(0x40));
+      const shapes = [
+        ['12 pointer-out', () => packet(12, Buffer.alloc(0), {pointers: {send: [{address: pathAddr, size: 0x301}], receive: [{address: out, size: 0x20}]}})],
+        ['12 raw-out', () => packet(12, Buffer.alloc(0), {send: [{address: pathAddr, size: 0x304}], receive: [{address: out, size: 0x20}]})],
+        ['12 input-path', () => packet(12, Buffer.concat([Buffer.alloc(0x300), Buffer.from('/')]))],
+        ['11 pointer-out', () => packet(11, Buffer.alloc(0), {pointers: {send: [{address: pathAddr, size: 0x301}], receive: [{address: out, size: 0x20}]}})],
+        ['13 pointer-out', () => packet(13, Buffer.alloc(0), {pointers: {send: [{address: pathAddr, size: 0x301}], receive: [{address: out, size: 0x20}]}})],
+        ['14 pointer-out', () => packet(14, Buffer.alloc(0), {pointers: {send: [{address: pathAddr, size: 0x301}], receive: [{address: out, size: 0x20}]}})],
+      ];
+      for (const [label, build] of shapes) {
+        try {
+          const reply = await domain.send(s, label, save, build());
+          const bytes = reply.result ? null : await s.read(out, 0x20);
+          console.log(label, '->', '0x' + (Number(reply.result) & 0x3fffff).toString(16),
+            bytes ? 'data ' + bytes.subarray(0, 16).toString('hex') : '');
+        } catch (error) {
+          console.log(label, '-> threw', error.message);
+        }
+      }
+      await s.close(save).catch(() => {});
+      return;
+    }
     console.error(`mounted space=${SPACES[chosen.space] ?? chosen.space} ` +
       `type=${TYPES[chosen.type] ?? chosen.type} uid=${chosen.uid.toString('hex')}`);
 
