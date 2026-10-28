@@ -128,6 +128,7 @@ async function main() {
 
     if (listOnly) {
       let count = 0, total = 0;
+      const stampTargets = [];
       async function show(directory) {
         const entries = await filesystem.listDirectory(s, save, directory, 2048);
         for (const entry of entries) {
@@ -137,6 +138,7 @@ async function main() {
             const size = Number(await filesystem.fileSize(s, opened.handle));
             await s.close(opened.handle).catch(() => s.handles.delete(opened.handle));
             console.log(`${String(size).padStart(9)}  ${full}`);
+            if (stampTargets.length < 8) stampTargets.push(full);
             count += 1; total += size;
           } else {
             console.log(`${'<dir>'.padStart(9)}  ${full}/`);
@@ -144,8 +146,33 @@ async function main() {
           }
         }
       }
+      // Newest write time, if the filesystem exposes GetFileTimeStampRaw (cmd 12).
+      let newest = 0;
+      try {
+        const {packet} = require(path.join(run, 'shared/ipc.cjs'));
+        const {u64} = require(path.join(engine, 'app/session.cjs'));
+        const out = s.base + 0x6000;
+        for (const full of stampTargets) {
+          const text = Buffer.from(full, 'utf8');
+          if (text.length >= 0x301) continue;
+          const pathBuf = Buffer.alloc(0x304);
+          text.copy(pathBuf);
+          await s.write(s.base + 0x2000, pathBuf);
+          const bytes = packet(12, Buffer.alloc(0), {pointers: {
+            send: [{address: s.base + 0x2000}],
+            receive: [{address: out, size: 0x20}],
+          }});
+          const reply = await domain.send(s, 'GetFileTimeStampRaw ' + full, save, bytes)
+            .catch(() => null);
+          if (!reply || reply.result) continue;
+          const raw = await s.read(out, 0x20);
+          const value = Number(raw.readBigUInt64LE(0));
+          if (value > newest) newest = value;
+        }
+      } catch { /* timestamps are optional */ }
       await show('/');
-      console.log(`listed ${count} files, ${total} bytes (read-only, nothing written)`);
+      console.log(`listed ${count} files, ${total} bytes` +
+        (newest ? `, newest ${Math.floor(newest / 1000000000)}` : '') + ' (read-only, nothing written)');
       return;
     }
     await fs.mkdir(outputDirectory, {recursive: true});
