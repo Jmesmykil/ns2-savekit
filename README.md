@@ -87,12 +87,14 @@ Writes are the only dangerous operation, and they are fenced:
 - **Save-root only.** Paths must be `/name`; `..`, nested paths and absolute
   paths are rejected.
 
-**One save operation per boot.** The promoted-root save path crashes the *host*
-application (`2162-0002`) often enough to assume it: a pull, a write or a delete,
-then restart the console. Two read-only opens in one boot are enough to trigger
-it, and it is not specific to any action — the same command succeeds as the first
-operation and crashes as the second. `kit.cjs` prints this reminder after every
-operation.
+**Save operations can drop the host, so restart when in doubt.** The
+promoted-root path has crashed the *host* application (`2162-0002`) on us, and
+two read-only opens in one boot were enough to do it on one occasion — but three
+back-to-back operations (pull, write, verify) completed in a single boot on
+another, with the session still live afterwards (see `docs/RESULTS.md`). Treat a
+restart between operations as risk reduction, not a rule: `kit.cjs` reminds you
+after every operation, and `--keep-open` is the one option that makes it *worse*
+by leaving the previous session alive.
 
 
 ### If a tool reports a missing engine function

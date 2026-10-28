@@ -154,6 +154,26 @@ to trigger it (observed twice, most recently on a second `--list-only`).
 limitation of any single action - the same list runs fine as the first operation
 of a boot - so the listing feature stays; the rule is what keeps it reliable.
 
+## Measured: more than one operation per boot does work
+
+The one-operation-per-boot rule is a risk heuristic, not a limit. Measured in a
+single boot, back to back, with no restart between:
+
+| step | operation | outcome |
+| --- | --- | --- |
+| 1 | `save-pull-root` (backup) | 289 files, 4,651,736 bytes |
+| 2 | `save-write-stage` (payload install, one commit) | replace checks passed, committed |
+| 3 | `save-pull-root --list-only` (verify) | listed 289 files; `ns2jb.asb` 1946, `save9999.dat` 28405 |
+
+The session stayed `ready` throughout and reported 72,872 calls afterwards. So
+three save operations in one boot succeeded here, where two had failed earlier the
+same day (one of those with `--keep-open`, which left the previous session alive
+and broke the *next* one at its first IPC).
+
+What that means for the rules in the README: a restart between operations is
+advice, not a requirement - it lowers the chance of the host dropping, but the
+drop is probabilistic, not per-operation. `--keep-open` is still wrong: leaving a
+session alive is what reliably breaks the next one.
 ## Failure modes observed (worth knowing before you try)
 
 | Symptom | Cause | What fixed it |
