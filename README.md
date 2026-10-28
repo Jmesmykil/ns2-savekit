@@ -87,26 +87,12 @@ Writes are the only dangerous operation, and they are fenced:
 - **Save-root only.** Paths must be `/name`; `..`, nested paths and absolute
   paths are rejected.
 
-**Save operations can drop the host, so restart when in doubt.** The
-promoted-root path has crashed the *host* application (`2162-0002`) on us, and
-two read-only opens in one boot were enough to do it on one occasion — but three
-back-to-back operations (pull, write, verify) completed in a single boot on
-another, with the session still live afterwards (see `docs/RESULTS.md`). Treat a
-restart between operations as risk reduction, not a rule: seven operations ran back
-to back in one boot (four archive pulls plus three absent probes) with the session
-still live, and `kit.cjs` reminds you after each one. `--keep-open` is the one
-option that makes it *worse*, by leaving the previous session alive so the next
-one dies at its first IPC. Restart only if an operation actually fails.
-
-
-### If a tool reports a missing engine function
-
-Some helpers use engine patches that upstream ns2jb does not carry - most often
-`mounted.inspectMountedFilesystem is not a function` when scanning for the
-account uid, or `0x2ee002` when creating a new file. See
-[docs/PATCHED-ENGINE.md](docs/PATCHED-ENGINE.md): reading a save works with plain
-upstream if you pass the uid yourself, creating files needs the patched
-`shared/ipc.cjs`.
+**Several save operations per session are fine.** Seven ran back to back in one
+boot (four archive pulls plus three absent probes) with the session still live, and
+a pull + write + verify sequence before that. Restart the console only if an
+operation actually fails. The one thing that reliably breaks the next session is
+`--keep-open`, which leaves the previous one alive - it exists as a diagnostic, not
+for normal use.
 
 ## Quick start
 

@@ -30,8 +30,7 @@ const NOTICE = [
   'Writes are the only dangerous operation and they are fenced: disposable titles',
   'only, a backup is required, existing files are replaced only when the live bytes',
   'still match that backup, everything goes down in one commit and is hashed back.',
-  'The promoted-root save path crashes the host app about 3 times in 5, so do one',
-  'save operation per boot and restart the console after a crash.',
+  'Several save operations run fine in one session; restart only if one fails.',
 ].join('\n');
 
 function quote(value) {
@@ -116,17 +115,10 @@ async function confirm(question) {
   return answer === 'y' || answer === 'yes';
 }
 
-// One save operation per boot is the safe limit: a second one crashes the host
-// app (2162-0002) often enough that the reminder is worth printing every time.
+// Operations are counted for the exit summary only; repeated ones are normal.
 let opsThisSession = 0;
 function saveOpDone() {
   opsThisSession += 1;
-  console.log(opsThisSession === 1
-    ? '\nreminder: that was the first save operation in this boot. Restart the console\n' +
-      'before another one - a second operation crashes the host app (2162-0002) often\n' +
-      'enough that it is the default assumption.'
-    : '\nreminder: ' + opsThisSession + ' save operations in this boot. If the next one fails\n' +
-      'or the app crashes with 2162-0002, restart the console.');
 }
 
 function heading(text) {
@@ -284,10 +276,7 @@ async function writeFiles(session, title, uid, backup, manifest) {
   const result = run('save-write-stage.cjs', writeArgs, {stdio: 'inherit'});
   console.log(result.ok ? '\ncommitted' : '\nwrite failed - see the message above');
   saveOpDone();
-  if (result.ok) {
-    console.log('\nNext: restart the console, then choose this title and 7 (verify) as the');
-    console.log('FIRST save operation of that boot - verify is itself a save operation.');
-  }
+  if (result.ok) console.log('\nDone. Option 7 verifies it against the console.');
 }
 
 async function writeManifest(session, title, uid, backup) {
@@ -361,12 +350,7 @@ async function installEditor(session, title, uid, backup) {
 }
 
 async function verifyAgainst(session, title, uid, backup) {
-  if (opsThisSession > 0) {
-    console.log('\nVerify is a save operation (it re-opens the save read-only to compare).');
-    console.log('This boot has already performed ' + opsThisSession + '.');
-    console.log('Restart the console and run verify as the FIRST operation of the next boot.');
-    if (!(await confirm('Try anyway?'))) return;
-  }
+
   const staged = await askDefault('Directory holding the files just written',
     path.join(REPO, 'staging', path.basename(backup || title)));
   if (!fs.existsSync(staged)) {
@@ -436,8 +420,7 @@ async function titleLoop(session, title, uid) {
       echoCommand('node tools/save-pull-root.cjs ' + listArgs.map(quote).join(' '));
       const listed = run('save-pull-root.cjs', listArgs, {stdio: 'inherit'});
       if (!listed.ok) {
-        console.log('\nlisting failed - if this is not the first save operation in this boot,');
-        console.log('restart the console (a second one crashes the host with 2162-0002).');
+        console.log('\nlisting failed - retry, or restart the console if it keeps failing.');
       } else {
         saveOpDone();
       }
@@ -488,7 +471,7 @@ async function main() {
     await titleLoop(session, title, uid);
   }
   rl.close();
-  console.log('\ndone. Keep SmileBASIC open while a session is held.');
+  console.log('\ndone (' + opsThisSession + ' save operation(s)). Keep SmileBASIC open while a session is held.');
 }
 
 main().catch(error => {
