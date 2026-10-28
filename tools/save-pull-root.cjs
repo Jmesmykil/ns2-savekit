@@ -134,22 +134,28 @@ async function main() {
       Buffer.from(process.env.FTIMEPATH || '/').copy(buf);
       await s.write(pathAddr, buf);
       await s.write(out, Buffer.alloc(0x40));
-      const shapes = [
-        ['12 pointer-out', () => packet(12, Buffer.alloc(0), {pointers: {send: [{address: pathAddr, size: 0x301}], receive: [{address: out, size: 0x20}]}})],
-        ['12 raw-out', () => packet(12, Buffer.alloc(0), {send: [{address: pathAddr, size: 0x304}], receive: [{address: out, size: 0x20}]})],
-        ['12 input-path', () => packet(12, Buffer.concat([Buffer.alloc(0x300), Buffer.from('/')]))],
-        ['11 pointer-out', () => packet(11, Buffer.alloc(0), {pointers: {send: [{address: pathAddr, size: 0x301}], receive: [{address: out, size: 0x20}]}})],
-        ['13 pointer-out', () => packet(13, Buffer.alloc(0), {pointers: {send: [{address: pathAddr, size: 0x301}], receive: [{address: out, size: 0x20}]}})],
-        ['14 pointer-out', () => packet(14, Buffer.alloc(0), {pointers: {send: [{address: pathAddr, size: 0x301}], receive: [{address: out, size: 0x20}]}})],
-      ];
-      for (const [label, build] of shapes) {
-        try {
-          const reply = await domain.send(s, label, save, build());
-          const bytes = reply.result ? null : await s.read(out, 0x20);
-          console.log(label, '->', '0x' + (Number(reply.result) & 0x3fffff).toString(16),
-            bytes ? 'data ' + bytes.subarray(0, 16).toString('hex') : '');
-        } catch (error) {
-          console.log(label, '-> threw', error.message);
+      const target = process.env.FTIMEPATH || '/account.sav';
+      // Sweep output sizes and path encodings: the call reached FS but was refused,
+      // so the remaining unknowns are the reply struct size and the path buffer.
+      for (const outSize of [8, 0x10, 0x18, 0x20, 0x28]) {
+        for (const [variant, pathSize] of [['exact', Buffer.byteLength(target) + 1],
+                                            ['padded', 0x301]]) {
+          const buf = Buffer.alloc(0x304);
+          Buffer.from(target).copy(buf);
+          await s.write(pathAddr, buf);
+          await s.write(out, Buffer.alloc(0x40));
+          const bytes = packet(12, Buffer.alloc(0), {pointers: {
+            send: [{address: pathAddr, size: pathSize}],
+            receive: [{address: out, size: outSize}]}});
+          try {
+            const reply = await domain.send(s, 'filetime', save, bytes);
+            const code = Number(reply.result) & 0x3fffff;
+            const data = code ? null : await s.read(out, outSize);
+            console.log(`12 out=${outSize} path=${variant} -> 0x${code.toString(16)}` +
+              (data ? '  ' + data.toString('hex') : ''));
+          } catch (error) {
+            console.log(`12 out=${outSize} path=${variant} -> threw ${error.message}`);
+          }
         }
       }
       await s.close(save).catch(() => {});
