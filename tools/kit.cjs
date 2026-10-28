@@ -263,9 +263,11 @@ async function doBackup(session, title, uid) {
     }
     return made[0] || null;
   }
-  const suggested = path.join(REPO, 'saves', titles.slug(title));
-  const dir = await askDefault('Directory for the backup', suggested);
-  if (!dir) return null;
+  // saves/<Game>/<user>/<timestamp> - no prompt, and every pull is kept.
+  const stamp = new Date().toISOString().slice(0, 16).replace('T', '_').replace(':', '');
+  const userTag = uid === 'all' ? 'all' : 'user-' + uid.slice(0, 8);
+  const dir = path.join(REPO, 'saves', titles.slug(title), userTag, stamp);
+  console.log('pulling into ' + path.relative(REPO, dir));
   const pullArgs = [session, title, dir, uid];
   echoCommand('node tools/save-pull-root.cjs ' + pullArgs.map(quote).join(' '));
   const result = run('save-pull-root.cjs', pullArgs, {stdio: 'inherit'});
@@ -369,9 +371,13 @@ async function installEditor(session, title, uid, backup) {
 
 async function verifyAgainst(session, title, uid, backup) {
 
-  const staged = await askDefault('Directory holding the files just written',
-    path.join(REPO, 'staging', path.basename(backup || title)));
-  if (!fs.existsSync(staged)) {
+  // Compare against the newest backup this tool made for the same game and user.
+  const root = path.join(REPO, 'saves', titles.slug(title), 'user-' + uid.slice(0, 8));
+  const staged = fs.existsSync(root)
+    ? path.join(root, fs.readdirSync(root).sort().filter(name => fs.statSync(path.join(root, name)).isDirectory()).pop() || '')
+    : '';
+  console.log('verifying against ' + (staged || '(no backup yet)'));
+  if (!staged || !fs.existsSync(staged)) {
     console.log('no such directory: ' + staged);
     return;
   }

@@ -286,7 +286,9 @@ mounted space=User type=Account uid=539fd27752770010a6ec4984c56d3664
 done: 290 files, 4651736 bytes -> /…/saves/Seedsow-Lullaby-demo
 ```
 
-Pull lands in `saves/Seedsow-Lullaby-demo` (the game's name, not its id). Restart
+Pull lands in `saves/Seedsow-Lullaby-demo/user-539fd277/2026-10-28_0244` - a folder per
+game, per account, per pull, so nothing is overwritten and older pulls stay
+comparable. No path is asked for. Restart
 the console, run the kit again, and choose `5` to put a save *back* — the editor
 release is fetched automatically when the directory is missing:
 
