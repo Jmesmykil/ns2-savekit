@@ -418,20 +418,36 @@ async function replaceFromDirectory(session, title, uid, backup) {
   await writeFiles(session, title, uid, backup, manifest);
 }
 
+// Artemis saves are recognised by their own file names, which the listing has
+// already shown once: system.dat/saveg.dat (BOWX/BOWG) plus the slot files.
+const ARTEMIS_FILES = /\/(system\.dat|saveg\.dat|save[0-9]{4}\.dat)$/im;
+
 async function titleLoop(session, title, uid) {
   let backup = null;
+  let artemis = false;
+  {
+    const probe = run('save-pull-root.cjs', [session, title, '.', uid, '--list-only']);
+    saveOpDone();
+    artemis = ARTEMIS_FILES.test(probe.out || '');
+  }
   for (;;) {
-    const task = await choose(titles.label(title) +
-      '\n  (each entry opens the save once; several in a row usually work - restart if one fails)', [
+    const items = [
       {label: 'List files in this save (read-only)      [save op]', value: 'list'},
       {label: 'Save: back this save up                     [save op]', value: 'backup'},
       {label: 'Replace: write files from a directory        [save op]', value: 'replace'},
-      {label: 'Install payload files (Artemis launcher)     [save op]', value: 'launcher'},
-      {label: 'Install the Seedsow Lua Editor save          [save op]', value: 'editor'},
+    ];
+    if (artemis) {
+      items.push(
+        {label: 'Install payload files (Artemis launcher)     [save op]', value: 'launcher'},
+        {label: 'Install the Seedsow Lua Editor save          [save op]', value: 'editor'});
+    }
+    items.push(
       {label: 'Delete a file (optional)                     [save op]', value: 'delete'},
       {label: 'Verify: compare the save with what we wrote  [save op]', value: 'verify'},
-      {label: 'Back to the title list', value: 'back'},
-    ]);
+      {label: 'Back to the title list', value: 'back'});
+    const task = await choose(titles.label(title) +
+      (artemis ? '\n  Artemis save detected' : '\n  no Artemis files in this save') +
+      '\n  (each entry opens the save once; several in a row usually work - restart if one fails)', items);
     if (closed || !task || task.value === 'back') return;
     if (task.value === 'list') {
       const listArgs = [session, title, '.', uid, '--list-only'];
