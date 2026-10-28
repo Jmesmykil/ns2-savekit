@@ -239,12 +239,13 @@ async function pickUid(session, title) {
 }
 
 async function doBackup(session, title, uid) {
+  const stamp = new Date().toISOString().slice(0, 16).replace('T', '_').replace(':', '');
   if (uid === 'all') {
     const slots = accountSlots(session);
-    const base = path.join(REPO, 'saves', titles.slug(title));
     const made = [];
     for (let i = 0; i < slots.length; i++) {
-      const dir = base + '-user' + (i + 1);
+      const dir = path.join(REPO, 'saves', titles.slug(title),
+        'user-' + slots[i].slice(0, 8), stamp);
       console.log(`\nuser ${i + 1} of ${slots.length}: probing first (read-only listing)`);
       // Probe: a listing that succeeds proves this account has an archive here,
       // so only accounts that actually have one get pulled.
@@ -264,8 +265,7 @@ async function doBackup(session, title, uid) {
     return made[0] || null;
   }
   // saves/<Game>/<user>/<timestamp> - no prompt, and every pull is kept.
-  const stamp = new Date().toISOString().slice(0, 16).replace('T', '_').replace(':', '');
-  const userTag = uid === 'all' ? 'all' : 'user-' + uid.slice(0, 8);
+  const userTag = 'user-' + uid.slice(0, 8);
   const dir = path.join(REPO, 'saves', titles.slug(title), userTag, stamp);
   console.log('pulling into ' + path.relative(REPO, dir));
   const pullArgs = [session, title, dir, uid];
@@ -448,9 +448,14 @@ async function titleLoop(session, title, uid) {
   let backup = null;
   let artemis = false;
   {
-    const probe = run('save-pull-root.cjs', [session, title, '.', uid, '--list-only']);
-    saveOpDone();
-    artemis = ARTEMIS_FILES.test(probe.out || '');
+    // 'all' is not a uid: probe the first account instead. This was the second
+    // place the literal string reached the puller and hung the session.
+    const probeUid = uid === 'all' ? (accountSlots(session)[0] || '') : uid;
+    if (probeUid) {
+      const probe = run('save-pull-root.cjs', [session, title, '.', probeUid, '--list-only']);
+      saveOpDone();
+      artemis = ARTEMIS_FILES.test(probe.out || '');
+    }
   }
   for (;;) {
     const items = [
