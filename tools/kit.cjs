@@ -428,6 +428,22 @@ async function replaceFromDirectory(session, title, uid, backup) {
 // already shown once: system.dat/saveg.dat (BOWX/BOWG) plus the slot files.
 const ARTEMIS_FILES = /\/(system\.dat|saveg\.dat|save[0-9]{4}\.dat)$/im;
 
+// 'all' only makes sense for a backup. Any other action needs one account, so it
+// resolves to the first account that actually has a save - never to the literal
+// string 'all', which used to be passed to the puller as if it were a uid.
+async function resolveOne(session, title, uid) {
+  if (uid !== 'all') return uid;
+  for (const slot of accountSlots(session)) {
+    const probe = run('save-pull-root.cjs', [session, title, '.', slot, '--list-only']);
+    saveOpDone();
+    if (probe.ok && /listed \d+ files/.test(probe.out)) {
+      console.log('using user ' + slot.slice(0, 8) + '…' + slot.slice(-4) + ' for this action');
+      return slot;
+    }
+  }
+  return accountSlots(session)[0];
+}
+
 async function titleLoop(session, title, uid) {
   let backup = null;
   let artemis = false;
@@ -455,6 +471,11 @@ async function titleLoop(session, title, uid) {
       (artemis ? '\n  Artemis save detected' : '\n  no Artemis files in this save') +
       '\n  (each entry opens the save once; several in a row usually work - restart if one fails)', items);
     if (closed || !task || task.value === 'back') return;
+    if (uid === 'all' && task.value !== 'backup') {
+      const resolved = await resolveOne(session, title, uid);
+      if (!resolved) return;
+      uid = resolved;
+    }
     if (task.value === 'list') {
       const listArgs = [session, title, '.', uid, '--list-only'];
       echoCommand('node tools/save-pull-root.cjs ' + listArgs.map(quote).join(' '));
