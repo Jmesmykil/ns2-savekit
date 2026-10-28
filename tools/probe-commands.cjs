@@ -52,17 +52,25 @@ async function main() {
   const byResult = new Map();
   try {
     const fsp = await s.openService('fsp-srv');
-    await s.ipc('SetCurrentProcess', fsp, 1, u64(0), {pid: true});
+    // The pid flag matters: without it FS does not bind the process and every
+    // later command fails at transport rather than returning a result code.
+    const init = await s.ipc('SetCurrentProcess', fsp, 1, u64(0), {pid: true});
+    console.log('SetCurrentProcess ->', '0x' + (Number(init.canonicalResult ?? init.result) & 0x3fffff).toString(16));
     for (let command = first; command <= last; command++) {
       let result, moves = 0, copies = 0;
       try {
-        const reply = await s.ipc('cmd ' + command, fsp, command, Buffer.alloc(0));
+        // pid:true on every message, the way domain.send does it: once a process is
+        // bound, FS rejects messages that do not carry the pid.
+        const reply = await s.ipc('cmd ' + command, fsp, command, Buffer.alloc(0), {pid: true});
         result = Number(reply.canonicalResult ?? reply.result) & 0x3fffff;
         moves = reply.moves.length;
         copies = reply.copies.length;
         for (const handle of [...reply.moves, ...reply.copies]) await s.close(handle).catch(() => {});
       } catch (error) {
-        result = 'threw';
+        // A refused command often comes back as a transport error, not a result
+        // code; keep the code so those ids stay distinguishable from silence.
+        const transport = /transport 0x([0-9a-f]+)/i.exec(error.message || '');
+        result = transport ? 'xport ' + transport[1] : 'threw';
       }
       const key = String(result);
       if (!byResult.has(key)) byResult.set(key, []);
