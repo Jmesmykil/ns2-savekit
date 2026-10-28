@@ -55,12 +55,9 @@ async function main() {
     // ConvertToDomain, then domain messages. Raw CMIF is refused on this build.
     const fspDomain = await domain.openDomain(s, 'probe');
     const fsp = fspDomain.handle;
-    // The pid flag matters: without it FS does not bind the process and every
-    // later command fails at transport rather than returning a result code.
-    if (process.env.NO_INIT !== '1') {
-      const init = await s.ipc('SetCurrentProcess', fsp, 1, u64(0), {pid: true});
-      console.log('SetCurrentProcess ->', '0x' + (Number(init.canonicalResult ?? init.result) & 0x3fffff).toString(16));
-    }
+    // openDomain already did SetCurrentProcess and ConvertToDomain; sending
+    // SetCurrentProcess again is what produced transport 0xf601 all along.
+    console.log('domain ready, root 0x' + fspDomain.root.toString(16));
     for (let command = first; command <= last; command++) {
       let result, moves = 0, copies = 0;
       try {
@@ -76,7 +73,7 @@ async function main() {
         // A refused command often comes back as a transport error, not a result
         // code; keep the code so those ids stay distinguishable from silence.
         const transport = /transport 0x([0-9a-f]+)/i.exec(error.message || '');
-        result = transport ? 'xport ' + transport[1] : 'threw';
+        result = transport ? 'xport ' + transport[1] : (error.message || 'threw').slice(0, 60);
       }
       const key = String(result);
       if (!byResult.has(key)) byResult.set(key, []);
