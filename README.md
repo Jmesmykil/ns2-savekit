@@ -133,6 +133,21 @@ write permission in one view:
 Number 1-9 (blank = quit):
 ```
 
+Press **`i`** at that prompt for the read-only inventory instead - every archive,
+every account, with size and state (`ok`, `sparse`, `empty`), which is the quickest
+way to see what is worth pulling before touching anything:
+
+```
+  game                                          user  files      size  state  id
+  ✔ Seedsow Lullaby (demo)                        1    289     4.4M  ok     010042d022aea000
+  ✔ Seedsow Lullaby (full)                        1     75     2.0M  ok     0100ee5021c9e000
+    Mario Kart™ World                             1      1     0.8M  sparse 0400c3f00006e000
+  ✔ Nora to Oujo to Noraneko Heart 2 (trial)      1     10     0.1M  ok     010012900d38a000
+    Pokémon Sword + Pokémon Sword Expansion Pass  2      0     0.0M  empty  0100abf008968000
+```
+
+`node tools/inventory.cjs <run-directory>` runs it standalone.
+
 Pick a number and that save's options open; asking for the account uid only if it
 is not already remembered:
 

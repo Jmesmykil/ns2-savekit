@@ -476,8 +476,16 @@ async function main() {
     }
     heading(rows.length + ' installed applications  (✔ = write-allowed)');
     rows.forEach((row, index) => console.log('  [' + (index + 1) + '] ' + row.label));
-    const picked = await ask('\nNumber 1-' + rows.length + ' (blank = quit): ');
+    const picked = await ask('\nNumber 1-' + rows.length +
+      '  (i = save inventory, blank = quit): ');
     if (closed || picked === '') break;
+    if (picked.toLowerCase() === 'i') {
+      // The inventory is the read-only overview: every archive, every account,
+      // with size and state, before anything is pulled.
+      echoCommand('node tools/inventory.cjs ' + quote(session));
+      run('inventory.cjs', [session], {stdio: 'inherit'});
+      continue;
+    }
     const index = Number(picked) - 1;
     if (!Number.isInteger(index) || !rows[index]) {
       console.log('  not a listed number');
