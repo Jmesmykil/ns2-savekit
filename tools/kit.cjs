@@ -187,6 +187,15 @@ function rememberUid(title, uid) {
   } catch { /* cache is a convenience */ }
 }
 
+// The console has a handful of users; address them by slot (1, 2, 3) rather than
+// by 32 hex characters. The uid is only needed to open the archive, so the mapping
+// is cached per title once chosen.
+function accountSlots(session) {
+  const result = run('save-pull-root.cjs', [session, '0000000000000000', '.', '--list-uids']);
+  return [...new Set((result.stdout || '').split('\n').map(line => line.trim())
+    .filter(line => /^[0-9a-f]{32}$/i.test(line)))];
+}
+
 async function pickUid(session, title) {
   const cache = uidCache();
   const cached = cache[title.toLowerCase()];
@@ -194,35 +203,26 @@ async function pickUid(session, title) {
     console.log('account uid: ' + cached + '  (remembered; config/uids.json)');
     return cached;
   }
-  // The same account owns every save on a single-user console, so any remembered
-  // uid is a good default rather than prompting from scratch.
-  const anyKnown = Object.values(cache)[0];
-  if (anyKnown) {
-    console.log('account uid: ' + anyKnown + '  (from another title; config/uids.json)');
-    rememberUid(title, anyKnown);
-    return anyKnown;
+  const slots = accountSlots(session);
+  if (slots.length > 0) {
+    const options = slots.map((uid, index) => ({
+      label: 'user ' + (index + 1) + '   ' + uid.slice(0, 8) + '…' + uid.slice(-4),
+      value: uid,
+    }));
+    const chosen = await choose('Which user owns this save?', options);
+    const uid = chosen ? chosen.value : slots[0];
+    console.log('using ' + uid);
+    rememberUid(title, uid);
+    return uid;
   }
-  const result = run('find-save-uid.cjs', [session, title]);
-  const uids = [...result.out.matchAll(/\b([0-9a-f]{32})\b/g)].map(match => match[1]);
-  const unique = [...new Set(uids)];
-  if (unique.length === 1) {
-    console.log('account uid: ' + unique[0]);
-    rememberUid(title, unique[0]);
-    return unique[0];
+  console.log('Could not list the console\'s users; enter the uid by hand once.');
+  const typed = await askDefault('account uid (32 hex chars)');
+  if (!typed) {
+    console.log('no uid given - back to the menu');
+    return null;
   }
-  if (unique.length === 0) {
-    console.log('Could not enumerate an account uid for this title.');
-    console.log('Enter the 32-hex uid once; it is remembered per title afterwards.');
-    const typed = await askDefault('account uid (32 hex chars)');
-    if (!typed) {
-      console.log('no uid given - back to the menu');
-      return null;
-    }
-    rememberUid(title, typed);
-    return typed;
-  }
-  const chosen = await choose('Which account?', unique.map(uid => ({label: uid, value: uid})));
-  return chosen ? chosen.value : null;
+  rememberUid(title, typed);
+  return typed;
 }
 
 async function doBackup(session, title, uid) {
