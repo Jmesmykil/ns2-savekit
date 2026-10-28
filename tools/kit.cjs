@@ -233,11 +233,20 @@ async function doBackup(session, title, uid) {
     const made = [];
     for (let i = 0; i < slots.length; i++) {
       const dir = base + '-user' + (i + 1);
-      console.log(`\nuser ${i + 1} of ${slots.length}`);
+      console.log(`\nuser ${i + 1} of ${slots.length}: probing first (read-only listing)`);
+      // Probe: a listing that succeeds proves this account has an archive here,
+      // so only accounts that actually have one get pulled.
+      const probe = run('save-pull-root.cjs', [session, title, '.', slots[i], '--list-only']);
+      saveOpDone();
+      const has = probe.ok && /listed \d+ files/.test(probe.out);
+      if (!has) {
+        console.log('  no save for this user - skipped');
+        continue;
+      }
       echoCommand('node tools/save-pull-root.cjs ' + [session, title, dir, slots[i]].map(quote).join(' '));
       const result = run('save-pull-root.cjs', [session, title, dir, slots[i]], {stdio: 'inherit'});
-      if (!result.ok) console.log('  no save for this user (or the session dropped)');
-      else made.push(dir);
+      if (result.ok) made.push(dir);
+      else console.log('  pull failed (the session may have dropped)');
       saveOpDone();
     }
     return made[0] || null;
