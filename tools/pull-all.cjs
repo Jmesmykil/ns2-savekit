@@ -80,14 +80,18 @@ async function main() {
   for (const appId of queue) {
     const folder = path.join(output, titles.slug(appId));
     console.log(`\nnext: ${titles.label(appId)} -> ${folder}`);
-    let pulled = false, exitCode = 0;
+    let pulled = false, exitCode = 0, absent = false;
     for (const uid of (uids.length ? uids : [''])) {
       const args = [run, appId, folder];
       if (uid) args.push(uid);
       const result = spawnSync(process.execPath, [path.join(TOOLS, 'save-pull-root.cjs'), ...args],
-        {stdio: 'inherit'});
+        {capture: true, encoding: 'utf8'});
+      process.stdout.write(result.stdout || '');
+      process.stderr.write(result.stderr || '');
       exitCode = result.status;
       if (result.status === 0) { pulled = true; break; }
+      // "no save filesystem opened" is a benign absence, not a dropped session.
+      if ((result.stderr || '').includes('No save filesystem opened')) absent = true;
     }
     if (pulled) {
       progress.done.push(appId);
@@ -97,7 +101,7 @@ async function main() {
       console.log('no save data for this application (0x7d402 for every account/space/type)');
     }
     await fsp.writeFile(progressFile, JSON.stringify(progress, null, 2) + '\n');
-    if (!pulled && exitCode !== 0) {
+    if (!pulled && !absent && exitCode !== 0) {
       console.log('stopping the batch: that failure is the one that can take the host down');
       break;
     }
