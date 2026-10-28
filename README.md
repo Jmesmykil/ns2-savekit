@@ -92,9 +92,11 @@ promoted-root path has crashed the *host* application (`2162-0002`) on us, and
 two read-only opens in one boot were enough to do it on one occasion — but three
 back-to-back operations (pull, write, verify) completed in a single boot on
 another, with the session still live afterwards (see `docs/RESULTS.md`). Treat a
-restart between operations as risk reduction, not a rule: `kit.cjs` reminds you
-after every operation, and `--keep-open` is the one option that makes it *worse*
-by leaving the previous session alive.
+restart between operations as risk reduction, not a rule: seven operations ran back
+to back in one boot (four archive pulls plus three absent probes) with the session
+still live, and `kit.cjs` reminds you after each one. `--keep-open` is the one
+option that makes it *worse*, by leaving the previous session alive so the next
+one dies at its first IPC. Restart only if an operation actually fails.
 
 
 ### If a tool reports a missing engine function
