@@ -98,8 +98,11 @@ async function main() {
   let save = null;
   let chosen = null;
   try {
-    for (const space of [1, 0, 3]) {
-      for (const type of [1, 0]) {
+    // Types beyond Account/System matter: some titles (SmileBASIC 4 retail among
+    // them) keep their save as a Device save, which an Account-only sweep reports
+    // as "no save data".
+    for (const space of [1, 0, 3, 4]) {
+      for (const type of [1, 0, 3, 4, 5]) {
         for (const uid of uids) {
           const input = Buffer.alloc(0x48);
           input[0] = space;
