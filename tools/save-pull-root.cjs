@@ -254,4 +254,25 @@ async function main() {
   }
 }
 
-main().catch(error => { console.error('FAILED:', error.message); process.exit(1); });
+const SESSION_LOST = /transport (?:failed )?(0xf601|62977)/i;
+const NO_HOST = /ENOENT.*memory\.sock/i;
+function fail(error) {
+  if (NO_HOST.test(error.message || '')) {
+    console.error('');
+    console.error('NO LIVE HOST - that run directory has no host attached.');
+    console.error('Start one with: node ~/ns2jb-rpc/run.cjs --rpc <this-mac-ip>');
+    console.error('Then use the run folder it prints.');
+    process.exit(4);
+  }
+  if (SESSION_LOST.test(error.message || '')) {
+    console.error('');
+    console.error('SESSION LOST - the console stopped answering this session.');
+    console.error('Close SmileBASIC on the console, reopen it, run the bootstrap, then');
+    console.error('start a new host (run.cjs) and retry. Nothing was changed on the save.');
+    process.exit(3);
+  }
+  console.error('FAILED:', error.message);
+  process.exit(1);
+}
+
+main().catch(fail);

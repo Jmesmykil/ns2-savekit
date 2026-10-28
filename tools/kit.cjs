@@ -42,16 +42,36 @@ function quote(value) {
 function echoCommand(command) {
   console.log('\n$ ' + command);
 }
+// The console can stop answering mid-session (transport 0xf601). Say so in one
+// line instead of letting a wall of failures look like a bug in the save logic.
+const SESSION_LOST = /transport (?:failed )?(0xf601|62977)/i;
+const NO_HOST = /ENOENT.*memory\.sock/i;
+function checkLost(result) {
+  const text = (result.stderr || '') + (result.stdout || '') + (result.message || '');
+  if (NO_HOST.test(text)) {
+    console.log('\nNO LIVE HOST - start node ~/ns2jb-rpc/run.cjs --rpc <mac-ip> and use its run folder.');
+    process.exit(4);
+  }
+  if (SESSION_LOST.test(text)) {
+    console.log('\nSESSION LOST - the console stopped answering.');
+    console.log('Close SmileBASIC, reopen it, run the bootstrap, start a new host, retry.');
+    console.log('The save was not changed.');
+    process.exit(3);
+  }
+  return result;
+}
+
 function run(script, args, options = {}) {
   const result = spawnSync(process.execPath, [path.join(TOOLS, script), ...args], {
     encoding: 'utf8',
     ...options,
   });
-  return {
+  const combined = (result.stdout || '') + (result.stderr || '');
+  return checkLost({
     ok: result.status === 0,
-    out: (result.stdout || '') + (result.stderr || ''),
+    out: combined,
     stdout: result.stdout || '',
-  };
+  });
 }
 
 function findRuns() {
